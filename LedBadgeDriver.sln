@@ -1,0 +1,32 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LedBadge", "LedBadge\LedBadge.csproj", "{D57128F7-4CD6-4C21-9871-20818B9D9049}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LedBadgeLib", "LedBadgeLib\LedBadgeLib.csproj", "{8F3CE511-C28C-4A6A-926A-35A23E43A000}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LedBadgeUtilLib", "LedBadgeUtilLib\LedBadgeUtilLib.csproj", "{C4A889C4-16FC-41D8-AA22-115B8E1CE420}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D57128F7-4CD6-4C21-9871-20818B9D9049}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D57128F7-4CD6-4C21-9871-20818B9D9049}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D57128F7-4CD6-4C21-9871-20818B9D9049}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D57128F7-4CD6-4C21-9871-20818B9D9049}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8F3CE511-C28C-4A6A-926A-35A23E43A000}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8F3CE511-C28C-4A6A-926A-35A23E43A000}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8F3CE511-C28C-4A6A-926A-35A23E43A000}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8F3CE511-C28C-4A6A-926A-35A23E43A000}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C4A889C4-16FC-41D8-AA22-115B8E1CE420}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C4A889C4-16FC-41D8-AA22-115B8E1CE420}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C4A889C4-16FC-41D8-AA22-115B8E1CE420}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C4A889C4-16FC-41D8-AA22-115B8E1CE420}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
