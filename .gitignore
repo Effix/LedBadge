@@ -1,3 +1,13 @@
+# temp files
+
+*/bin/Debug/
+*/bin/Release/
+*/obj/Debug/
+*/obj/Release/
+packages/*/
+*.suo
+*.atsuo
+
 # Windows image file caches
 Thumbs.db
 ehthumbs.db
@@ -16,10 +26,6 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
-bin/Debug/
-bin/Release/
-obj/Debug/
-obj/Release/
 
 # =========================
 # Operating System Files
