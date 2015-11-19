@@ -186,7 +186,7 @@
                         </Grid>
                         <DockPanel DockPanel.Dock="Bottom">
                             <Button Name="TwitterButton" Width="64" Content="Start" DockPanel.Dock="Right" Click="ToggleTwitter"/>
-                            <TextBox HorizontalAlignment="Right" Text="Add one search term per line above "/>
+                            <TextBlock HorizontalAlignment="Right" Text="Add one search term per line above "/>
                         </DockPanel>
                         <TextBox Name="Hashtags" AcceptsReturn="True" Margin="0,0,0,5"/>
                     </DockPanel>
