@@ -47,7 +47,7 @@
                         <StackPanel DockPanel.Dock="Left" Width="150">
                             <GroupBox Header="Connection">
                                 <StackPanel>
-                                    <ComboBox Name="ComPortDropDown" ItemsSource="{Binding ComPorts}" SelectedValue="{Binding SelectedComPort}" DropDownOpened="ComPortsDropDownOpened"/>
+                                    <ComboBox ToolTip="Choose the serial communication port that the badge is connected to." Name="ComPortDropDown" ItemsSource="{Binding ComPorts}" SelectedValue="{Binding SelectedComPort}" DropDownOpened="ComPortsDropDownOpened"/>
                                     <Button Content="Connect" Click="ToggleConnection">
                                         <Button.Style>
                                             <Style TargetType="{x:Type Button}">
@@ -66,13 +66,13 @@
                             </GroupBox>
                             <GroupBox Header="Output">
                                 <StackPanel>
-                                    <DockPanel Margin="0,-1,0,0">
+                                    <DockPanel Margin="0,-1,0,0" ToolTip="Are the LEDs blinding you? Turn down the brightness a little.">
                                         <TextBlock DockPanel.Dock="Left" Text="Brightness" Margin="0,0,5,0"/>
                                         <Slider Minimum="0" Maximum="255" Value="{Binding Brightness}"/>
                                     </DockPanel>
-                                    <CheckBox Margin="0,-1,0,0" Content="Dither Frame" IsChecked="{Binding DitherFrame}"/>
-                                    <CheckBox Margin="0,-1,0,0" Content="Dither Images" IsChecked="{Binding DitherImages}"/>
-                                    <CheckBox Margin="0,-1,0,-1" Content="Rotate Frame" IsChecked="{Binding RotateFrame}"/>
+                                    <CheckBox Margin="0,-1,0,0" ToolTip="Dithers the frame buffer before packing. The dots will crawl as the frame changes." Content="Dither Frame" IsChecked="{Binding DitherFrame}"/>
+                                    <CheckBox Margin="0,-1,0,0" ToolTip="Dithers images before copying to the frame buffer. Done once at image load and stable as they scroll." Content="Dither Images" IsChecked="{Binding DitherImages}"/>
+                                    <CheckBox Margin="0,-1,0,-1" ToolTip="Rotate image 180° if it is easier to have the cable com out of the other side when mounting." Content="Rotate Frame" IsChecked="{Binding RotateFrame}"/>
                                 </StackPanel>
                             </GroupBox>
                         </StackPanel>
@@ -92,7 +92,7 @@
                             </GroupBox>
                         </StackPanel>
                         <DockPanel>
-                            <DockPanel Margin="5,5,5,0" DockPanel.Dock="Top">
+                            <DockPanel ToolTip="Pick one of the sample sources or diagnostic modes to display." Margin="5,5,5,0" DockPanel.Dock="Top">
                                 <TextBlock DockPanel.Dock="Left" Text="Display" VerticalAlignment="Center" Margin="0,0,5,0"/>
                                 <ComboBox ItemsSource="{Binding Source={l:Enumeration {x:Type l:DisplayMode}}}" SelectedValue="{Binding DisplayMode}"/>
                             </DockPanel>
@@ -111,13 +111,14 @@
                     <DockPanel>
                         <DockPanel DockPanel.Dock="Bottom">
                             <Button Width="64" Content="Send" DockPanel.Dock="Right" Click="SendText"/>
+                            <TextBlock DockPanel.Dock="Right" Text="Add one message per line above "/>
                             <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                                <RadioButton GroupName="Layout" Name="SingleLineLayout" Style="{StaticResource RadioButtonButton}">
+                                <RadioButton ToolTip="Single line layout" GroupName="Layout" Name="SingleLineLayout" Style="{StaticResource RadioButtonButton}">
                                     <RadioButton.Content>
                                         <Rectangle Width="40" Height="16" Stroke="Black" StrokeThickness="1" Fill="Transparent"/>
                                     </RadioButton.Content>
                                 </RadioButton>
-                                <RadioButton GroupName="Layout" Name="DoubleLineLayout" Style="{StaticResource RadioButtonButton}">
+                                <RadioButton ToolTip="Double line layout" GroupName="Layout" Name="DoubleLineLayout" Style="{StaticResource RadioButtonButton}">
                                     <RadioButton.Content>
                                         <Grid Background="Transparent">
                                             <Grid.RowDefinitions>
@@ -129,7 +130,7 @@
                                         </Grid>
                                     </RadioButton.Content>
                                 </RadioButton>
-                                <RadioButton GroupName="Layout" Name="SplitLayout" Style="{StaticResource RadioButtonButton}">
+                                <RadioButton ToolTip="Split layout" GroupName="Layout" Name="SplitLayout" Style="{StaticResource RadioButtonButton}">
                                     <RadioButton.Content>
                                         <Grid Background="Transparent">
                                             <Grid.ColumnDefinitions>
@@ -153,7 +154,10 @@
                 </TabItem>
                 <TabItem Header="Image">
                     <DockPanel>
-                        <Button Width="64" Content="Send" DockPanel.Dock="Bottom" HorizontalAlignment="Right" Click="SendImage"/>
+                        <DockPanel DockPanel.Dock="Bottom">
+                            <Button Width="64" Content="Send" DockPanel.Dock="Right" Click="SendImage"/>
+                            <TextBlock HorizontalAlignment="Right" Text="Add one image path per line above "/>
+                        </DockPanel>
                         <TextBox Name="ImageInput" AcceptsReturn="True" Margin="0,0,0,5"/>
                     </DockPanel>
                 </TabItem>
@@ -180,7 +184,10 @@
                             <TextBlock Grid.Column="0" Grid.Row="3" Text="Access Token Secret"/>
                             <TextBox Grid.Column="2" Grid.Row="3" Text="{Binding TwitterProvider.AccessTokenSecret}"/>
                         </Grid>
-                        <Button Name="TwitterButton" Width="64" Content="Start" DockPanel.Dock="Bottom" HorizontalAlignment="Right" Click="ToggleTwitter"/>
+                        <DockPanel DockPanel.Dock="Bottom">
+                            <Button Name="TwitterButton" Width="64" Content="Start" DockPanel.Dock="Right" Click="ToggleTwitter"/>
+                            <TextBox HorizontalAlignment="Right" Text="Add one search term per line above "/>
+                        </DockPanel>
                         <TextBox Name="Hashtags" AcceptsReturn="True" Margin="0,0,0,5"/>
                     </DockPanel>
                 </TabItem>

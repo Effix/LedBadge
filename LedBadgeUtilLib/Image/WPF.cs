@@ -79,17 +79,17 @@ namespace LedBadgeLib
             target.WritePixels(new Int32Rect(0, 0, width, height), intermediateImage, width, 0);
         }
 
-        public static BitmapSource ImageFromPackedBuffer(byte[] packedBuffer, int offset, int width, int height)
+        public static BitmapSource ImageFromPackedBuffer(byte[] packedBuffer, int offset, bool rotate, int width, int height)
         {
             var image = new WriteableBitmap(width, height, 96, 96, PixelFormats.Gray8, null);
-            ImageFromPackedBuffer(image, packedBuffer, offset, width, height);
+            ImageFromPackedBuffer(image, packedBuffer, offset, rotate, width, height);
             return image;
         }
 
-        public static void ImageFromPackedBuffer(WriteableBitmap target, byte[] packedBuffer, int offset, int width, int height, byte[] tempIntermediate = null)
+        public static void ImageFromPackedBuffer(WriteableBitmap target, byte[] packedBuffer, int offset, bool rotate, int width, int height, byte[] tempIntermediate = null)
         {
             var intermediateImage = tempIntermediate ?? new byte[width * height];
-            BadgeImage.PackedBufferToIntermediateImage(packedBuffer, intermediateImage, width, height, offset);
+            BadgeImage.PackedBufferToIntermediateImage(packedBuffer, intermediateImage, offset, rotate);
             ImageFromIntermediate(target, intermediateImage, width, height);
         }
 

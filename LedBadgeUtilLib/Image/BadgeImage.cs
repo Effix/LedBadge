@@ -53,16 +53,25 @@ namespace LedBadgeLib
             return dst;
         }
 
-        public static void IntermediateImagetoPackedBuffer(byte[] intermediateImage, byte[] packedBuffer, int width, int height, int offset, bool rotate)
+        public static void IntermediateImagetoPackedBuffer(byte[] intermediateImage, byte[] packedBuffer, int offset, bool rotate)
         {
+            int packedI = offset;
             if(rotate)
             {
+                for(int p = intermediateImage.Length - 4; p >= 0; ++packedI, p -= 4)
+                {
+                    packedBuffer[packedI] = BadgeImage.Pack4GrayPix(
+                        intermediateImage[p + 3],
+                        intermediateImage[p + 2],
+                        intermediateImage[p + 1],
+                        intermediateImage[p + 0]);
+                }
             }
             else
             {
-                for(int i = offset, p = 0, n = intermediateImage.Length / 4; i < n; ++i, p += 4)
+                for(int p = 0; p < intermediateImage.Length; ++packedI, p += 4)
                 {
-                    packedBuffer[i] = BadgeImage.Pack4GrayPix(
+                    packedBuffer[packedI] = BadgeImage.Pack4GrayPix(
                         intermediateImage[p + 0],
                         intermediateImage[p + 1],
                         intermediateImage[p + 2],
@@ -71,14 +80,28 @@ namespace LedBadgeLib
             }
         }
 
-        public static void PackedBufferToIntermediateImage(byte[] packedBuffer, byte[] intermediateImage, int width, int height, int offset)
+        public static void PackedBufferToIntermediateImage(byte[] packedBuffer, byte[] intermediateImage, int offset, bool rotate)
         {
-            for(int i = offset, p = 0, n = intermediateImage.Length / 4; i < n; ++i, p += 4)
+            int packedI = offset;
+            if(rotate)
             {
-                intermediateImage[p + 0] = BadgeImage.PixToSrgbGray((byte)((packedBuffer[i] >> 0) & 0x3));
-                intermediateImage[p + 1] = BadgeImage.PixToSrgbGray((byte)((packedBuffer[i] >> 2) & 0x3));
-                intermediateImage[p + 2] = BadgeImage.PixToSrgbGray((byte)((packedBuffer[i] >> 4) & 0x3));
-                intermediateImage[p + 3] = BadgeImage.PixToSrgbGray((byte)((packedBuffer[i] >> 6) & 0x3));
+                for(int p = intermediateImage.Length - 4; p >= 0; ++packedI, p -= 4)
+                {
+                    intermediateImage[p + 3] = BadgeImage.PixToSrgbGray((byte)((packedBuffer[packedI] >> 0) & 0x3));
+                    intermediateImage[p + 2] = BadgeImage.PixToSrgbGray((byte)((packedBuffer[packedI] >> 2) & 0x3));
+                    intermediateImage[p + 1] = BadgeImage.PixToSrgbGray((byte)((packedBuffer[packedI] >> 4) & 0x3));
+                    intermediateImage[p + 0] = BadgeImage.PixToSrgbGray((byte)((packedBuffer[packedI] >> 6) & 0x3));
+                }
+            }
+            else
+            {
+                for(int p = 0; p < intermediateImage.Length; ++packedI, p += 4)
+                {
+                    intermediateImage[p + 0] = BadgeImage.PixToSrgbGray((byte)((packedBuffer[packedI] >> 0) & 0x3));
+                    intermediateImage[p + 1] = BadgeImage.PixToSrgbGray((byte)((packedBuffer[packedI] >> 2) & 0x3));
+                    intermediateImage[p + 2] = BadgeImage.PixToSrgbGray((byte)((packedBuffer[packedI] >> 4) & 0x3));
+                    intermediateImage[p + 3] = BadgeImage.PixToSrgbGray((byte)((packedBuffer[packedI] >> 6) & 0x3));
+                }
             }
         }
 

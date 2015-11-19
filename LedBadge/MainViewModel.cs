@@ -158,7 +158,7 @@ namespace LedBadge
             {
                 Dispatcher.InvokeAsync(() =>
                 {
-                    LedBadgeLib.WPF.ImageFromPackedBuffer(FrameBuffer, args.Frame.PackedBuffer, 0, args.Frame.Width, args.Frame.Height);
+                    LedBadgeLib.WPF.ImageFromPackedBuffer(FrameBuffer, args.Frame.PackedBuffer, 0, RotateFrame, args.Frame.Width, args.Frame.Height);
 
                     if(fpsUpdate)
                     {
@@ -270,7 +270,7 @@ namespace LedBadge
                     int offset = LedBadgeLib.BadgeResponses.DecodePixRect(response, 0, out width, out height, out length);
                     var img = new System.Windows.Controls.Image()
                     {
-                        Source = LedBadgeLib.WPF.ImageFromPackedBuffer(response, offset, width, height),
+                        Source = LedBadgeLib.WPF.ImageFromPackedBuffer(response, offset, RotateFrame, width, height),
                         Width = width * scale,
                         Height = height * scale,
                         SnapsToDevicePixels = true,

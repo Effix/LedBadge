@@ -27,7 +27,7 @@ namespace LedBadgeLib
                 System.Diagnostics.Debug.Assert((Width & 0x3) == 0);
                 PackedBuffer = new byte[(Width * BadgeCaps.BitsPerPixel / 8) * Height];
             }
-            BadgeImage.IntermediateImagetoPackedBuffer(IntermediateImage, PackedBuffer, Width, Height, 0, rotate);
+            BadgeImage.IntermediateImagetoPackedBuffer(IntermediateImage, PackedBuffer, 0, rotate);
         }
 
         public int Width { get; private set; }
