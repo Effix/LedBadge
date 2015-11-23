@@ -4,6 +4,7 @@
 */bin/Release/
 */obj/Debug/
 */obj/Release/
+Release/
 packages/*/
 *.suo
 *.atsuo

@@ -1,4 +1,8 @@
+#if !defined(SELECT_ROW) || (SELECT_ROW < 0) || (SELECT_ROW > 23)
+#error SELECT_ROW must be defined to a value 0-23 to output pixels!
+#endif
 
+	// roughly pseudo-code for the unrolled loop below...
 	/*for(unsigned char b = 0, r = 0; b < 6; ++b)
 	{
 		char data = *g_DisplayReg.Buffer--;

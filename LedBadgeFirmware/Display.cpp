@@ -2,6 +2,8 @@
 #include "Serial.h"
 #include "Eeprom.h"
 
+// Segment order from upper left to lower right
+// This isn't used directly, it is inlined in the jumptable below
 /*const unsigned char g_RowSwizzleTable[BufferHeight * 2] = 
 {
 	11, 7, 
@@ -18,6 +20,7 @@
 	16, 12
 };*/
 
+// Scrambles the output row selection to reduce the perceived flicker on the display
 const unsigned char g_RowDitherTable[BufferHeight] = 
 {
 	 7,
@@ -34,7 +37,8 @@ const unsigned char g_RowDitherTable[BufferHeight] =
 	 5
 };
 
-const unsigned char g_BrightnessTable[256] PROGMEM = 
+// Gamma ramp for converting input brightness to pwm ratio
+const unsigned char g_BrightnessTable[BrightnessLevels] PROGMEM = 
 {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 
@@ -54,12 +58,10 @@ const unsigned char g_BrightnessTable[256] PROGMEM =
 	0xDB, 0xDD, 0xE0, 0xE2, 0xE4, 0xE7, 0xE9, 0xEB, 0xEE, 0xF0, 0xF3, 0xF5, 0xF8, 0xFA, 0xFD, 0xFF
 };
 
+// Display state machine values
 DisplayState g_DisplayReg = {};
-	
-//
-//
-//
 
+// Set a block of pixels in a buffer to a particular value
 void SolidFill(unsigned char x, unsigned char y, unsigned char width, unsigned char height, unsigned char color, unsigned char *buffer)
 {
 	for(unsigned char iy = y, sy = y + height; iy < sy; ++iy)
@@ -71,6 +73,7 @@ void SolidFill(unsigned char x, unsigned char y, unsigned char width, unsigned c
 	}
 }
 
+// Set a block of pixels in a buffer to the given data (read from the serial port)
 void Fill(unsigned char x, unsigned char y, unsigned char width, unsigned char height, unsigned char *buffer)
 {
 	unsigned char data = 0;
@@ -93,6 +96,7 @@ void Fill(unsigned char x, unsigned char y, unsigned char width, unsigned char h
 	}
 }
 
+// Copy a block of pixels in a buffer to somewhere else
 void Copy(unsigned char srcX, unsigned char srcY, unsigned char dstX, unsigned char dstY, unsigned char width, unsigned char height, unsigned char *srcBuffer, unsigned char *dstBuffer)
 {
 	for(unsigned char sy = srcY, dy = dstY, ey = srcY + height; sy < ey; ++sy, ++dy)
@@ -104,6 +108,7 @@ void Copy(unsigned char srcX, unsigned char srcY, unsigned char dstX, unsigned c
 	}
 }
 
+// Return a block of pixels from a buffer (sending it out to the serial port, 2bpp packed)
 void ReadRect(unsigned char x, unsigned char  y, unsigned char width, unsigned char height, unsigned char *buffer)
 {
 	unsigned char data = 0;
@@ -132,6 +137,7 @@ void ReadRect(unsigned char x, unsigned char  y, unsigned char width, unsigned c
 	}
 }
 
+// Set the image to show at startup (saves the front buffer to non-volatile memory)
 void SetPowerOnImage()
 {
 	cli();
@@ -145,6 +151,8 @@ void SetPowerOnImage()
 	sei();
 }
 
+// Fills the font buffer directly from the on chip non-volatile memory
+// Must be called with interrupts disabled
 void LoadPowerOnImage()
 {
 	unsigned char *p = g_DisplayReg.FrontBuffer;
@@ -154,16 +162,14 @@ void LoadPowerOnImage()
 	}
 }
 
-//
-//
-//
-
+// Flips the front and back buffers (latches over at the end of the frame)
 void SwapBuffers()
 {
 	g_DisplayReg.SwapRequest = true;
 	while(g_DisplayReg.SwapRequest) {}
 }
 
+// Commits the requested buffer swap at the end of the frame
 static inline void LatchInFrameSwap()
 {
 	if(g_DisplayReg.SwapRequest)
@@ -176,12 +182,16 @@ static inline void LatchInFrameSwap()
 	}
 }
 
+// Sets the overall image brightness (latches over at the end of the frame)
 void SetBrightness(unsigned char brightness)
 {
 	g_DisplayReg.BrightnessLevel = brightness;
 	g_DisplayReg.ChangeBrightnessRequest = true;
 }
 
+// Set the hold values for the gray scale bit-planes
+// Values are differential and the brightnesses are effectively a, a+b, and a+b+c 
+// So, in order to get a 1, 5, 9 spread, you would pass in a=1, b=4, c=4
 void SetHoldTimings(unsigned char a, unsigned char b, unsigned char c)
 {
 	g_DisplayReg.GammaTable[0] = a;
@@ -189,19 +199,24 @@ void SetHoldTimings(unsigned char a, unsigned char b, unsigned char c)
 	g_DisplayReg.GammaTable[2] = c;
 }
 
+// Commits the requested brightness change when it is safe to do so
 static inline void LatchInBrightness()
 {
 	if(g_DisplayReg.ChangeBrightnessRequest)
 	{
 		g_DisplayReg.ChangeBrightnessRequest = false;
 		
+		// the OE (output enable) signal is wired up to one of the pwm pins, so this has way more intensity levels than we can generate with the gray scale bit-planes
+		// since it is a separate pin, it overlays nicely, but dim values can end up looking a little flickery
 		if(g_DisplayReg.BrightnessLevel)
 		{
+			// grab the pwm duty cycle from the look up table
 			TCCR0B |= (1 << CS00);
 			OCR0B = pgm_read_byte(&g_BrightnessTable[g_DisplayReg.BrightnessLevel]);
 		}
 		else
 		{
+			// ...or just totally off
 			TCCR0B &= ~(1 << CS00);
 			OCR0B = ~0;
 			TCNT0 = 0;
@@ -209,6 +224,8 @@ static inline void LatchInBrightness()
 	}
 }
 
+// Sets up the ports bound to the led drivers configures the output state, and fills the front buffer with the startup image
+// Called once at program start
 void ConfigureDisplay()
 {
 	// data and clock pins
@@ -242,10 +259,7 @@ void ConfigureDisplay()
 	LoadPowerOnImage();
 }
 
-//
-//
-//
-
+// Updates one segment of the display (one half a a row)
 inline void RefreshDisplay()
 {
 	unsigned char y = g_RowDitherTable[g_DisplayReg.Y];
@@ -259,6 +273,7 @@ inline void RefreshDisplay()
 	unsigned char portD_default = PORTD | (1 << PORTD7); // row select high
 	unsigned char portD_selectRow = PORTD & ~(1 << PORTD7); // row select low
 
+	// unrolled swizzle lookup+shifting out of the pixel values
 	PORTD = portD_default;
 	switch(row)
 	{
@@ -410,6 +425,7 @@ inline void RefreshDisplay()
 	PORTD |= (1 << PORTD6); // storage register clock high
 	PORTD &= ~(1 << PORTD6); // storage register clock low
 	
+	// now do state machine book-keeping
 	if(g_DisplayReg.Half-- == 0)
 	{
 		g_DisplayReg.Half = 1;
@@ -436,6 +452,7 @@ inline void RefreshDisplay()
 	}
 }
 
+// Interrupt handler for timer to ensure that the display updates are regular and not delayed by any io or command processing
 ISR(TIMER2_COMPA_vect, ISR_BLOCK)
 {
 	RefreshDisplay();

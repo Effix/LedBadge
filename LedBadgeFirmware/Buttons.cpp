@@ -1,5 +1,7 @@
 #include "Buttons.h"
 
+// Sets up button input
+// Called once at program start
 void ConfigurePushButtons()
 {
 	// button inputs are on pc2 and pc3
@@ -8,23 +10,11 @@ void ConfigurePushButtons()
 	PORTC |= ((1 << PORTC3) | (1 << PORTC2));
 }
 
+// Helper for polling the buttons
 template<int PIN> static inline bool CheckButton()
 {
-	static bool buttonDown = false;
-	
-	if((PINC & (1 << PIN)) == 0)
-	{
-		if(!buttonDown)
-		{
-			buttonDown = true;
-		}
-	}
-	else
-	{
-		buttonDown = false;
-	}
-	
-	return buttonDown;
+	// this should so some debouncing logic here...
+	return (PINC & (1 << PIN)) == 0;
 }
 
 bool CheckButton0()
