@@ -142,11 +142,17 @@ void SetPowerOnImage()
 {
 	cli();
 	
+	// turn off the output to avoid a bright segment just hanging out
+	EnableDisplay(false);
+	
 	unsigned char *p = g_DisplayReg.FrontBuffer;
 	for(unsigned char i = 0; i < BufferLength; ++i, ++p)
 	{
 		WriteEEPROM(i, *p);
 	}
+	
+	// restore image
+	EnableDisplay(true);
 	
 	sei();
 }
@@ -199,28 +205,33 @@ void SetHoldTimings(unsigned char a, unsigned char b, unsigned char c)
 	g_DisplayReg.GammaTable[2] = c;
 }
 
+// Modifies the overall display brightness
+static inline void SetBrightnessLevelRegisters(unsigned char level)
+{
+	// the OE (output enable) signal is wired up to one of the pwm pins, so this has way more intensity levels than we can generate with the gray scale bit-planes
+	// since it is a separate pin, it overlays nicely, but dim values can end up looking a little flickery
+	if(level)
+	{
+		// grab the pwm duty cycle from the look up table
+		TCCR0B |= (1 << CS00);
+		OCR0B = pgm_read_byte(&g_BrightnessTable[level]);
+	}
+	else
+	{
+		// ...or just totally off
+		TCCR0B &= ~(1 << CS00);
+		OCR0B = ~0;
+		TCNT0 = 0;
+	}
+}
+
 // Commits the requested brightness change when it is safe to do so
 static inline void LatchInBrightness()
 {
 	if(g_DisplayReg.ChangeBrightnessRequest)
 	{
 		g_DisplayReg.ChangeBrightnessRequest = false;
-		
-		// the OE (output enable) signal is wired up to one of the pwm pins, so this has way more intensity levels than we can generate with the gray scale bit-planes
-		// since it is a separate pin, it overlays nicely, but dim values can end up looking a little flickery
-		if(g_DisplayReg.BrightnessLevel)
-		{
-			// grab the pwm duty cycle from the look up table
-			TCCR0B |= (1 << CS00);
-			OCR0B = pgm_read_byte(&g_BrightnessTable[g_DisplayReg.BrightnessLevel]);
-		}
-		else
-		{
-			// ...or just totally off
-			TCCR0B &= ~(1 << CS00);
-			OCR0B = ~0;
-			TCNT0 = 0;
-		}
+		SetBrightnessLevelRegisters(g_DisplayReg.BrightnessLevel);
 	}
 }
 
@@ -257,6 +268,19 @@ void ConfigureDisplay()
 	g_DisplayReg.BufferP = g_DisplayReg.FrontBuffer + BufferLength;
 	
 	LoadPowerOnImage();
+}
+
+// Helper for blanking out the display during long operations while interrupts are disabled
+void EnableDisplay(bool enable)
+{
+	if(enable)
+	{
+		SetBrightnessLevelRegisters(g_DisplayReg.BrightnessLevel);
+	}
+	else
+	{
+		SetBrightnessLevelRegisters(0);
+	}
 }
 
 // Updates one segment of the display (one half a a row)

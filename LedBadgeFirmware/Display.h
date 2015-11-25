@@ -11,10 +11,12 @@ enum
 {
 	BufferWidth = 48,											// pixels across
 	BufferHeight = 12,											// pixels tall
+	BufferPixels = BufferWidth * BufferHeight,					// total pixels
 	BufferBitPlanes = 3,										// unpacked bit-planes, 2 bits -> black + 3 gray levels
 	BufferBitPlaneStride = BufferWidth / 8,						// bit-planes are 1bbp
 	BufferBitPlaneLength = BufferBitPlaneStride * BufferHeight,	// full bit-plane size
 	BufferLength = BufferBitPlaneLength * BufferBitPlanes,		// full unpacked frame buffer size
+	BufferPackedLength = BufferPixels / 4,						// full packed frame length (from a fill command)
 	BufferCount = 2,											// buffers in the swap chain (front/back)
 	
 	BrightnessLevels = 256										// brightness look up table size
@@ -79,6 +81,9 @@ void SetHoldTimings(unsigned char a, unsigned char b, unsigned char c);
 // Sets up the ports bound to the led drivers configures the output state, and fills the front buffer with the startup image
 // Called once at program start
 void ConfigureDisplay();
+
+// Helper for blanking out the display during long operations while interrupts are disabled
+void EnableDisplay(bool enable);
 
 //
 // Inline implementations

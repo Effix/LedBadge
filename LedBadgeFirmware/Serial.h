@@ -18,4 +18,7 @@ unsigned char ReadSerialData();
 // Will block if the output buffer is full
 void WriteSerialData(unsigned char data);
 
+// Gets the total number of bytes that can be read without blocking
+unsigned char GetPendingSerialDataSize();
+
 #endif /* SERIAL_H_ */
