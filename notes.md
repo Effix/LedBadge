@@ -1,4 +1,4 @@
-﻿# LED Badge
+# LED Badge
 
     Speed = 12,000,000
     Target Frame Rate = 60
