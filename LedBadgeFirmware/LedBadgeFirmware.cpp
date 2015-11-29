@@ -73,6 +73,9 @@ int main(void)
 			case CommandCodes::Version:
 			{
 				// respond with the version of this firmware
+				#if VERSION > 15
+				#error Overflow writing version to the response stream
+				#endif
 				WriteSerialData((ResponseCodes::Version << 4) | VERSION);
 				break;
 			}
@@ -174,6 +177,22 @@ int main(void)
 				SetHoldTimings(command_other & 0xF, (b_c >> 4) & 0xF, b_c & 0xF);
 				break;
 			}
+			case CommandCodes::SetIdleTimeout:
+			{
+				// set the idle time behavior and parameters
+				unsigned char timeout = ReadSerialData();
+				unsigned char fade = (command_other >> 3) & 0x1;
+				unsigned char resetToBootImage = (command_other >> 2) & 0x1;
+				SetIdleTimeout(fade, resetToBootImage, timeout);
+				break;
+			}
+			case CommandCodes::GetBufferFullness:
+			{
+				// respond with the current remaining size for the buffered input
+				WriteSerialData(ResponseCodes::BufferState << 4);
+				WriteSerialData(GetPendingSerialDataSize());
+				break;
+			}
 			default:
 			{
 				// bad command - probably missed a byte. resync
@@ -181,5 +200,7 @@ int main(void)
 				break;
 			}
 		}
+		
+		ResetIdleTime();
     }
 }

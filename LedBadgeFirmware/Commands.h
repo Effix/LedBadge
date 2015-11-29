@@ -1,7 +1,7 @@
 #ifndef COMMANDS_H_
 #define COMMANDS_H_
 
-#define VERSION 1
+#define VERSION 2
 
 struct CommandCodes
 {
@@ -20,7 +20,9 @@ struct CommandCodes
         Fill,				// Set a block of pixels in a buffer to the given data (2bpp packed)
         Copy,				// Copy a block of pixels from a location in a buffer to another
 		SetPowerOnImage,	// Sets the initial frame when first powered up (saves the front buffer to non-volatile memory)
-		SetHoldTimings		// Controls the gray scale levels by setting the hold levels between the bit-planes
+		SetHoldTimings,		// Controls the gray scale levels by setting the hold levels between the bit-planes
+		SetIdleTimeout,		// Sets the idle timeout duration and behavior
+		GetBufferFullness	// Queries the state of the input buffer
 	};
 };
 
@@ -35,7 +37,8 @@ struct ResponseCodes
 		PixRect,			// Returning a block of pixel values (2bpp packed)
 		Inputs,				// Returning the value of the button inputs
 		BadCommand,			// Panic response - need to resync
-		ReceiveOverflow		// Panic response - need to resync
+		ReceiveOverflow,	// Panic response - need to resync
+		BufferState			// Returning fullness of the input buffer
 	};
 };
 

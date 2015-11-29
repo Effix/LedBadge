@@ -22,6 +22,16 @@ enum
 	BrightnessLevels = 256										// brightness look up table size
 };
 
+struct FadingAction
+{
+	enum Enum
+	{
+		None,
+		In,
+		Out
+	};
+};
+
 struct DisplayState
 {
 	volatile bool SwapRequest;									// true to swap the buffers at the end of the frame output
@@ -31,8 +41,13 @@ struct DisplayState
 	unsigned char BitPlane;										// currently displaying bit-plane index
 	unsigned char BitPlaneHold;									// remaining count on current bit-plane
 	const unsigned char *BufferP;								// points at the next 8 pixels to go out
-	unsigned int Frame;											// current frame
 	volatile bool FrameChanged;									// true if frame just changed
+	unsigned char TimeoutTrigger;								// idle frame count threshold
+	unsigned char TimeoutCounter;								// idle frames so far...
+	unsigned char FadeState;									// current action for the fade state machine
+	unsigned char FadeCounter;									// counter for the fade state machine
+	bool IdleFadeEnable;										// true to invoke fading to the idle reset image
+	bool IdleResetToBootImage;									// true to reset to the startup image instead of just black
 	bool BufferSelect;											// index of the current front buffer
 	unsigned char BrightnessLevel;								// current output brightness
 	unsigned char GammaTable[BufferBitPlanes];					// hold timings for the bit-planes
@@ -62,7 +77,10 @@ void Fill(unsigned char x, unsigned char y, unsigned char width, unsigned char h
 void Copy(unsigned char srcX, unsigned char srcY, unsigned char dstX, unsigned char dstY, unsigned char width, unsigned char height, unsigned char *srcBuffer, unsigned char *dstBuffer);
 
 // Return a block of pixels from a buffer (sending it out to the serial port, 2bpp packed)
-void ReadRect(unsigned char x, unsigned char  y, unsigned char width, unsigned char height, unsigned char *buffer = g_DisplayReg.BackBuffer);
+void ReadRect(unsigned char x, unsigned char y, unsigned char width, unsigned char height, unsigned char *buffer = g_DisplayReg.BackBuffer);
+
+// Clears a buffer to black (faster than solid fill)
+void ClearBuffer(unsigned char *buffer = g_DisplayReg.BackBuffer);
 
 // Set the image to show at startup (saves the front buffer to non-volatile memory)
 void SetPowerOnImage();
@@ -77,6 +95,13 @@ void SetBrightness(unsigned char brightness);
 // Values are differential and the brightnesses are effectively a, a+b, and a+b+c 
 // So, in order to get a 1, 5, 9 spread, you would pass in a=1, b=4, c=4
 void SetHoldTimings(unsigned char a, unsigned char b, unsigned char c);
+
+// Sets the timeout parameters and behavior
+// A timeout of 255 disables idle timeouts
+void SetIdleTimeout(unsigned char fade, unsigned char resetToBootImage, unsigned char timeout);
+
+// Heartbeat to reset the idle timeout counter
+void ResetIdleTime();
 
 // Sets up the ports bound to the led drivers configures the output state, and fills the front buffer with the startup image
 // Called once at program start

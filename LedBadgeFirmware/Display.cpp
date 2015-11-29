@@ -137,6 +137,15 @@ void ReadRect(unsigned char x, unsigned char  y, unsigned char width, unsigned c
 	}
 }
 
+// Clears a buffer to black (faster than solid fill)
+void ClearBuffer(unsigned char *buffer)
+{
+	for(unsigned char i = 0; i < BufferLength; ++i)
+	{
+		*buffer++ = 0;
+	}
+}
+
 // Set the image to show at startup (saves the front buffer to non-volatile memory)
 void SetPowerOnImage()
 {
@@ -205,6 +214,36 @@ void SetHoldTimings(unsigned char a, unsigned char b, unsigned char c)
 	g_DisplayReg.GammaTable[2] = c;
 }
 
+// Sets the timeout parameters and behavior
+// A timeout of 255 disables idle timeouts
+void SetIdleTimeout(unsigned char fade, unsigned char resetToBootImage, unsigned char timeout)
+{
+	g_DisplayReg.IdleFadeEnable = fade;
+	g_DisplayReg.IdleResetToBootImage = resetToBootImage;
+	g_DisplayReg.TimeoutTrigger = timeout;
+}
+
+// Heartbeat to reset the idle timeout counter
+void ResetIdleTime()
+{
+	g_DisplayReg.TimeoutCounter = 0;
+}
+
+// Stops and clears any in progress fade
+static inline void ResetFade()
+{
+	g_DisplayReg.TimeoutCounter = 0;
+	g_DisplayReg.FadeCounter = 0;
+	g_DisplayReg.FadeState = FadingAction::None;
+}
+
+// Begins a fade sequence
+static inline void StartFade()
+{
+	g_DisplayReg.FadeState = FadingAction::Out;
+	g_DisplayReg.FadeCounter = g_DisplayReg.BrightnessLevel;
+}
+
 // Modifies the overall display brightness
 static inline void SetBrightnessLevelRegisters(unsigned char level)
 {
@@ -232,6 +271,83 @@ static inline void LatchInBrightness()
 	{
 		g_DisplayReg.ChangeBrightnessRequest = false;
 		SetBrightnessLevelRegisters(g_DisplayReg.BrightnessLevel);
+		ResetFade();
+	}
+}
+
+// Updates the timeout state machine
+static inline void PumpTimeout()
+{
+	if(g_DisplayReg.TimeoutTrigger < 255 && g_DisplayReg.FadeState == FadingAction::None)
+	{
+		if(g_DisplayReg.TimeoutCounter >= g_DisplayReg.TimeoutTrigger)
+		{
+			if(g_DisplayReg.IdleFadeEnable)
+			{
+				StartFade();
+			}
+			else
+			{
+				if(g_DisplayReg.IdleResetToBootImage)
+				{
+					LoadPowerOnImage();
+				}
+				else
+				{
+					ClearBuffer(g_DisplayReg.FrontBuffer);
+				}
+				
+				g_DisplayReg.TimeoutCounter = 0;
+			}
+		}
+		else
+		{
+			++g_DisplayReg.TimeoutCounter;
+		}
+	}
+}
+
+// Updates the fade state machine
+static inline void PumpFade()
+{
+	switch(g_DisplayReg.FadeState)
+	{
+		case FadingAction::In:
+		{
+			if(g_DisplayReg.FadeCounter >= g_DisplayReg.BrightnessLevel)
+			{
+				g_DisplayReg.TimeoutCounter = 0;
+				g_DisplayReg.FadeState = FadingAction::None;
+			}
+			else
+			{
+				++g_DisplayReg.FadeCounter;
+			}
+			SetBrightnessLevelRegisters(g_DisplayReg.FadeCounter);
+			break;
+		}
+		case FadingAction::Out:
+		{
+			if(g_DisplayReg.FadeCounter == 0)
+			{
+				if(g_DisplayReg.IdleResetToBootImage)
+				{
+					LoadPowerOnImage();
+				}
+				else
+				{
+					ClearBuffer(g_DisplayReg.FrontBuffer);
+				}
+				
+				g_DisplayReg.FadeState = FadingAction::In;
+			}
+			else
+			{
+				--g_DisplayReg.FadeCounter;
+			}
+			SetBrightnessLevelRegisters(g_DisplayReg.FadeCounter);
+			break;
+		}
 	}
 }
 
@@ -255,6 +371,7 @@ void ConfigureDisplay()
 	OCR2A = 344 / 8;
 	TIMSK2 |= (1 << OCIE2A);
 	
+	// omitted fields are 0 initialized
 	g_DisplayReg.FrontBuffer = g_DisplayReg.Buffers[0];
 	g_DisplayReg.BackBuffer = g_DisplayReg.Buffers[1];
 	g_DisplayReg.BrightnessLevel = BrightnessLevels / 2;
@@ -266,6 +383,8 @@ void ConfigureDisplay()
 	g_DisplayReg.BitPlane = BufferBitPlanes - 1;
 	g_DisplayReg.BitPlaneHold = g_DisplayReg.GammaTable[g_DisplayReg.BitPlane];
 	g_DisplayReg.BufferP = g_DisplayReg.FrontBuffer + BufferLength;
+	g_DisplayReg.TimeoutTrigger = 255;
+	g_DisplayReg.FadeState = FadingAction::In;
 	
 	LoadPowerOnImage();
 }
@@ -466,6 +585,8 @@ inline void RefreshDisplay()
 				
 					LatchInFrameSwap();
 					LatchInBrightness();
+					PumpTimeout();
+					PumpFade();
 				
 					g_DisplayReg.FrameChanged = true;
 				}
