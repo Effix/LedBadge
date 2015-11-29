@@ -8,7 +8,7 @@ Release/
 packages/*/
 *.suo
 *.atsuo
-Releases/*/
+Releases/
 
 # Windows image file caches
 Thumbs.db
