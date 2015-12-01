@@ -82,6 +82,9 @@ void ReadRect(unsigned char x, unsigned char y, unsigned char width, unsigned ch
 // Clears a buffer to black (faster than solid fill)
 void ClearBuffer(unsigned char *buffer = g_DisplayReg.BackBuffer);
 
+// Fast copy of a buffer
+void CopyWholeBuffer(unsigned char *srcBuffer, unsigned char *dstBuffer);
+
 // Set the image to show at startup (saves the front buffer to non-volatile memory)
 void SetPowerOnImage();
 
@@ -115,26 +118,52 @@ void EnableDisplay(bool enable);
 //
 
 // Sets a pixel value in a buffer
+inline void SetPixUnsafe(unsigned char x, unsigned char y, unsigned char val, unsigned char *buffer)
+{
+	// figure out the packed bit position and mask for the bit-plane
+	const unsigned char xBitPos = 7 - (x & 7);
+	const unsigned char xPos = x >> 3;
+	const unsigned char bit = 1 << xBitPos;
+	const unsigned char mask = ~bit;
+		
+	unsigned char *p = &buffer[y * BufferBitPlaneStride + xPos];
+
+	// expand the 0-3 pixel value into the 3 bit-planes
+	*p = (*p & mask) | (val > 0 ? bit : 0);
+	p += BufferBitPlaneLength;
+	*p = (*p & mask) | (val > 1 ? bit : 0);
+	p += BufferBitPlaneLength;
+	*p = (*p & mask) | (val > 2 ? bit : 0);
+}
+
+// Sets a pixel value in a buffer
 // Clips to the bounds of the buffer
 inline void SetPix(unsigned char x, unsigned char y, unsigned char val, unsigned char *buffer)
 {
 	if(x < BufferWidth && y < BufferHeight)
 	{
-		// figure out the packed bit position and mask for the bit-plane
-		const unsigned char xBitPos = 7 - (x & 7);
-		const unsigned char xPos = x >> 3;
-		const unsigned char bit = 1 << xBitPos;
-		const unsigned char mask = ~bit;
-	
-		unsigned char *p = &buffer[y * BufferBitPlaneStride + xPos];
-
-		// expand the 0-3 pixel value into the 3 bit-planes
-		*p = (*p & mask) | (val > 0 ? bit : 0);
-		p += BufferBitPlaneLength;
-		*p = (*p & mask) | (val > 1 ? bit : 0);
-		p += BufferBitPlaneLength;
-		*p = (*p & mask) | (val > 2 ? bit : 0);
+		SetPixUnsafe(x, y, val, buffer);
 	}
+}
+
+// Reads a pixel value from a buffer
+inline unsigned char GetPixUnsafe(unsigned char x, unsigned char y, unsigned char *buffer)
+{
+	// figure out the packed bit position and mask for the bit-plane
+	const unsigned char xBitPos = 7 - (x & 7);
+	const unsigned char xPos = x >> 3;
+	const unsigned char mask = (1 << xBitPos);
+	
+	unsigned char *p = &buffer[y * BufferBitPlaneStride + xPos];
+
+	// un-expand the bit-planes by checking the most significant plane
+	if(*(p + 2 * BufferBitPlaneLength) & mask)
+		return 3;
+	if(*(p + 1 * BufferBitPlaneLength) & mask)
+		return 2;
+	if(*p & mask)
+		return 1;
+	return 0;
 }
 
 // Reads a pixel value from a buffer
@@ -143,21 +172,7 @@ inline unsigned char GetPix(unsigned char x, unsigned char y, unsigned char *buf
 {
 	if(x < BufferWidth && y < BufferHeight)
 	{
-		// figure out the packed bit position and mask for the bit-plane
-		const unsigned char xBitPos = 7 - (x & 7);
-		const unsigned char xPos = x >> 3;
-		const unsigned char mask = (1 << xBitPos);
-	
-		unsigned char *p = &buffer[y * BufferBitPlaneStride + xPos];
-
-		// un-expand the bit-planes by checking the most significant plane
-		if(*(p + 2 * BufferBitPlaneLength) & mask)
-			return 3;
-		if(*(p + 1 * BufferBitPlaneLength) & mask)
-			return 2;
-		if(*p & mask)
-			return 1;
-		return 0;
+		return GetPixUnsafe(x, y, buffer);
 	}
 	else
 	{

@@ -9,9 +9,9 @@
 void Setup()
 {
 	// ports and io
+	ConfigureDisplay();
 	ConfigurePushButtons();
 	ConfigureUART();
-	ConfigureDisplay();
 	
 	sei();
 }
@@ -136,8 +136,16 @@ int main(void)
 				unsigned char y_height = ReadSerialData();
 				unsigned char target = (command_other >> 2) & 0x3;
 				unsigned char color = command_other & 0x3;
-				SolidFill(x, (y_height >> 4) & 0xF, width, y_height & 0xF, color, 
-					target == Target::BackBuffer ? g_DisplayReg.BackBuffer : g_DisplayReg.FrontBuffer);
+				
+				unsigned char *buffer = target == Target::BackBuffer ? g_DisplayReg.BackBuffer : g_DisplayReg.FrontBuffer;
+				if(color == 0 && x == 0 && width == BufferWidth && y_height == BufferHeight)
+				{
+					ClearBuffer(buffer);
+				}
+				else
+				{
+					SolidFill(x, (y_height >> 4) & 0xF, width, y_height & 0xF, color, buffer);
+				}
 				break;
 			}
 			case CommandCodes::Fill:
@@ -159,9 +167,17 @@ int main(void)
 				unsigned char srcY_dstY = ReadSerialData();
 				unsigned char width = ReadSerialData();
 				unsigned char height_srcTarget_dstTarget = ReadSerialData();
-				Copy(srcX, (srcY_dstY >> 4) & 0xF, dstX, srcY_dstY & 0xF, width, (height_srcTarget_dstTarget >> 4) & 0xF, 
-					((height_srcTarget_dstTarget >> 2) & 0x3) == Target::BackBuffer ? g_DisplayReg.BackBuffer : g_DisplayReg.FrontBuffer,
-					(height_srcTarget_dstTarget & 0x3) == Target::BackBuffer ? g_DisplayReg.BackBuffer : g_DisplayReg.FrontBuffer);
+				
+				unsigned char *srcBuffer = ((height_srcTarget_dstTarget >> 2) & 0x3) == Target::BackBuffer ? g_DisplayReg.BackBuffer : g_DisplayReg.FrontBuffer;
+				unsigned char *dstBuffer = (height_srcTarget_dstTarget & 0x3) == Target::BackBuffer ? g_DisplayReg.BackBuffer : g_DisplayReg.FrontBuffer;
+				if(srcX == 0 && dstX == 0 && srcY_dstY == 0 && width == BufferWidth && ((height_srcTarget_dstTarget >> 4) & 0xF) == BufferHeight)
+				{
+					CopyWholeBuffer(srcBuffer, dstBuffer);
+				}
+				else
+				{
+					Copy(srcX, (srcY_dstY >> 4) & 0xF, dstX, srcY_dstY & 0xF, width, (height_srcTarget_dstTarget >> 4) & 0xF, srcBuffer, dstBuffer);
+				}
 				break;
 			}
 			case CommandCodes::SetPowerOnImage:

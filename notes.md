@@ -1,4 +1,4 @@
-# LED Badge
+﻿# LED Badge
 
     Speed = 12,000,000
     Target Frame Rate = 60
@@ -19,20 +19,27 @@
     Bytes per Frame Compressed = Pixels / Pixels per Byte Compressed in bytes => 144 bytes
     Bytes per Frame Uncompressed = Pixels / Pixels per Byte Uncompressed in bytes => 216 bytes
     
-    Measured Segment Cycles = 296 # measured
+    Measured Segment Cycles = 248 # measured
     Refresh Interval = 334
     Refresh Rate = Speed / Refresh Interval / Segments / Brightness Passes => 166.334
     
-    Cycles Left Over = Speed * ((Refresh Interval - Measured Segment Cycles) / Refresh Interval) => 1,365,269.4611
-    Cycles per Frame = Cycles Left Over / Target Frame Rate => 22,754.491
-    Cycle Ratio = Cycles Left Over / Speed => 0.1138
+    Cycles Left Over = Speed * ((Refresh Interval - Measured Segment Cycles) / Refresh Interval) => 3,089,820.3593
+    Cycles per Frame = Cycles Left Over / Target Frame Rate => 51,497.006
+    Cycle Ratio = Cycles Left Over / Speed => 0.2575
     
-    Cycles per Pixel Write = 35
-    Cycles per Fill = Pixels * Cycles per Pixel Write => 20,160
-    Cycles per Copy = 18545 # measured maximum size
-    Est Longest Op = Cycles per Copy / Cycle Ratio => 163,000.7895
-    Fills per Frame = Cycles per Frame / Cycles per Fill => 1.1287
-    Copies per Frame = Cycles per Frame / Cycles per Copy => 1.227
+    Measured SetPix Cycles = 67
+    Measured GetPix Cycles = 28
+    Measured ClearBuffer Cycles = 1092
+    Measured SolidFill Cycles = 37805
+    Measured Fill Cycles = 49990
+    Measured Copy Cycles = 90001
+    
+    Est Cycles per Fill = Pixels * Measured SetPix Cycles => 38,592
+    Est Cycles per Copy = Pixels * (Measured GetPix Cycles + Measured SetPix Cycles) => 54,720
+    
+    Est Longest Op = Measured Copy Cycles / Cycle Ratio => 349,538.7674
+    Fills per Frame = Cycles per Frame / Measured Fill Cycles => 1.0301
+    Copies per Frame = Cycles per Frame / Measured Copy Cycles => 0.5722
    
 # Bandwidth
     
@@ -44,7 +51,7 @@
     
     Bytes per Frame = (Baud / 10) / Target Frame Rate => 213.3333
     Cycles per Byte = Speed / (Baud / 10) => 937.5
-    Queue Size = Est Longest Op / Cycles per Byte => 173.8675
+    Queue Size = Est Longest Op / Cycles per Byte => 372.8414
     
     UBBR(Baud) = Speed / (16 * Baud) - 1
     UBBR(57600) => 12.0208

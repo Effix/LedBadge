@@ -1,6 +1,7 @@
 #include "Display.h"
 #include "Serial.h"
 #include "Eeprom.h"
+#include <util/atomic.h>
 
 // Segment order from upper left to lower right
 // This isn't used directly, it is inlined in the jumptable below
@@ -146,24 +147,32 @@ void ClearBuffer(unsigned char *buffer)
 	}
 }
 
+// Fast copy of a buffer
+void CopyWholeBuffer(unsigned char *srcBuffer, unsigned char *dstBuffer)
+{
+	for(unsigned char i = 0; i < BufferLength; ++i)
+	{
+		*dstBuffer++ = *srcBuffer++;
+	}
+}
+
 // Set the image to show at startup (saves the front buffer to non-volatile memory)
 void SetPowerOnImage()
 {
-	cli();
-	
-	// turn off the output to avoid a bright segment just hanging out
-	EnableDisplay(false);
-	
-	unsigned char *p = g_DisplayReg.FrontBuffer;
-	for(unsigned char i = 0; i < BufferLength; ++i, ++p)
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
-		WriteEEPROM(i, *p);
+		// turn off the output to avoid a bright segment just hanging out
+		EnableDisplay(false);
+	
+		unsigned char *p = g_DisplayReg.FrontBuffer;
+		for(unsigned char i = 0; i < BufferLength; ++i, ++p)
+		{
+			WriteEEPROM(i, *p);
+		}
+	
+		// restore image
+		EnableDisplay(true);
 	}
-	
-	// restore image
-	EnableDisplay(true);
-	
-	sei();
 }
 
 // Fills the font buffer directly from the on chip non-volatile memory
@@ -252,12 +261,14 @@ static inline void SetBrightnessLevelRegisters(unsigned char level)
 	if(level)
 	{
 		// grab the pwm duty cycle from the look up table
+		TCCR0A |= (1 << COM0B0) | (1 << COM0B1);
 		TCCR0B |= (1 << CS00);
 		OCR0B = pgm_read_byte(&g_BrightnessTable[level]);
 	}
 	else
 	{
 		// ...or just totally off
+		TCCR0A &= ~((1 << COM0B0) | (1 << COM0B1));
 		TCCR0B &= ~(1 << CS00);
 		OCR0B = ~0;
 		TCNT0 = 0;
@@ -361,10 +372,9 @@ void ConfigureDisplay()
 	DDRD |= (1 << PORTD7) | (1 << PORTD6) | (1 << PORTD5);
 	PORTD &= ~((1 << PORTD7) | (1 << PORTD6) | (1 << PORTD5));
 	
-	// brightness pwm timer
-	TCCR0A |= (1 << COM0B0) | (1 << COM0B1) | (1 << WGM00) | (1 << WGM01);
-	TCCR0B |= (1 << CS00);
-	OCR0B = BrightnessLevels / 2;
+	// brightness pwm timer (initialize to disabled state)
+	TCCR0A |= (1 << WGM00) | (1 << WGM01);
+	SetBrightnessLevelRegisters(0);
 	
 	// refresh timer
 	TCCR2B |= (1 << CS21);
@@ -394,7 +404,7 @@ void EnableDisplay(bool enable)
 {
 	if(enable)
 	{
-		SetBrightnessLevelRegisters(g_DisplayReg.BrightnessLevel);
+		SetBrightnessLevelRegisters(g_DisplayReg.FadeState != FadingAction::None ? g_DisplayReg.FadeCounter : g_DisplayReg.BrightnessLevel);
 	}
 	else
 	{
