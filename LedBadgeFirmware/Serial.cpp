@@ -4,7 +4,7 @@
 #include <util/atomic.h>
 
 // Circular read buffer that the input interrupt can fill out while pixels are being pushed out
-unsigned char g_SerialBuffer[256] = {};
+static unsigned char g_SerialBuffer[256] __attribute__ ((section (".serialBuffer")));
 volatile unsigned char g_SerialReadPos = 0;
 volatile unsigned char g_SerialWritePos = 0;
 volatile unsigned char g_SerialCount = 0;
@@ -74,7 +74,7 @@ unsigned char ReadSerialData()
 	while(g_SerialReadPos == g_SerialWritePos) { }
 	
 	unsigned char data;	
-	ATOMIC_BLOCK(ATOMIC_FORCEON)
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
 		--g_SerialCount;
 		data = g_SerialBuffer[g_SerialReadPos++];
@@ -96,7 +96,7 @@ void WriteSerialData(unsigned char data)
 unsigned char GetPendingSerialDataSize()
 {
 	unsigned char count;
-	ATOMIC_BLOCK(ATOMIC_FORCEON)
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
 		count = g_SerialCount;
 	}

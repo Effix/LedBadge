@@ -35,13 +35,13 @@
 		}
 	}*/
 
-#define NextWord() __asm__ volatile ( \
+#define NextWord() asm volatile ( \
 		"ld		 __tmp_reg__, -%a[buffer]"		"\n\t"	/* load next 8 pixels and move pointer to previous byte */ \
 		:   "=e" (b)									\
 		:	[buffer] "e" (b)							\
 	);
 
-#define OutputPix(BIT) __asm__ volatile ( \
+#define OutputPix(BIT) asm volatile ( \
 		"bst	__tmp_reg__, %[bit]"			"\n\t"	/* read pixel bit from current byte */ \
 		"bld	%[portBReg], 1"					"\n\t"	/* store pixel bit into PB1 */ \
 		"out	%[portBAddr], %[portBReg]"		"\n\t"	/* send pixel bit to output (also clocks data-latch low) */ \
@@ -53,7 +53,7 @@
 			[portBReg] "r" (portB)						\
 	);
 
-#define OutputPixAndRow(BIT) __asm__ volatile ( \
+#define OutputPixAndRow(BIT) asm volatile ( \
 		"bst	__tmp_reg__, %[bit]"			"\n\t"	/* read pixel bit from current byte */ \
 		"bld	%[portBReg], 1"					"\n\t"	/* store pixel bit into PB1 */ \
 		"out	%[portBAddr], %[portBReg]"		"\n\t"	/* send pixel bit to output (also clocks data-latch low) */ \

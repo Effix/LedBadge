@@ -27,19 +27,19 @@
     Cycles per Frame = Cycles Left Over / Target Frame Rate => 51,497.006
     Cycle Ratio = Cycles Left Over / Speed => 0.2575
     
-    Measured SetPix Cycles = 67
-    Measured GetPix Cycles = 28
+    Measured SetPix Cycles = 48
+    Measured GetPix Cycles = 78
     Measured ClearBuffer Cycles = 1092
-    Measured SolidFill Cycles = 37805
-    Measured Fill Cycles = 49990
-    Measured Copy Cycles = 90001
+    Measured SolidFill Cycles = 27215
+    Measured Fill Cycles = 40209
+    Measured Copy Cycles = 63438
     
-    Est Cycles per Fill = Pixels * Measured SetPix Cycles => 38,592
-    Est Cycles per Copy = Pixels * (Measured GetPix Cycles + Measured SetPix Cycles) => 54,720
+    Est Cycles per Fill = Pixels * Measured SetPix Cycles => 27,648
+    Est Cycles per Copy = Pixels * (Measured GetPix Cycles + Measured SetPix Cycles) => 72,576
     
-    Est Longest Op = Measured Copy Cycles / Cycle Ratio => 349,538.7674
-    Fills per Frame = Cycles per Frame / Measured Fill Cycles => 1.0301
-    Copies per Frame = Cycles per Frame / Measured Copy Cycles => 0.5722
+    Est Longest Op = Measured Copy Cycles / Cycle Ratio => 246,375.4884
+    Fills per Frame = Cycles per Frame / Measured Fill Cycles => 1.2807
+    Copies per Frame = Cycles per Frame / Measured Copy Cycles => 0.8118
    
 # Bandwidth
     
@@ -51,7 +51,7 @@
     
     Bytes per Frame = (Baud / 10) / Target Frame Rate => 213.3333
     Cycles per Byte = Speed / (Baud / 10) => 937.5
-    Queue Size = Est Longest Op / Cycles per Byte => 372.8414
+    Queue Size = Est Longest Op / Cycles per Byte => 262.8005
     
     UBBR(Baud) = Speed / (16 * Baud) - 1
     UBBR(57600) => 12.0208

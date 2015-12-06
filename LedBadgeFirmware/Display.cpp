@@ -59,17 +59,61 @@ const unsigned char g_BrightnessTable[BrightnessLevels] PROGMEM =
 	0xDB, 0xDD, 0xE0, 0xE2, 0xE4, 0xE7, 0xE9, 0xEB, 0xEE, 0xF0, 0xF3, 0xF5, 0xF8, 0xFA, 0xFD, 0xFF
 };
 
+extern "C" 
+{
+	unsigned char c_PixMasks[8] =
+	{
+		1 << 7,
+		1 << 6,
+		1 << 5,
+		1 << 4,
+		1 << 3,
+		1 << 2,
+		1 << 1,
+		1 << 0
+	};
+}
+
+static unsigned char g_Buffer0[BufferLength] __attribute__ ((section (".buffer0")));
+static unsigned char g_Buffer1[BufferLength] __attribute__ ((section (".buffer1")));
+
 // Display state machine values
 DisplayState g_DisplayReg = {};
+
+// Clamps a span along an axis to the bounds [0, Extent)
+template<unsigned char Extent> inline void Clamp(unsigned char &pos, unsigned char &size)
+{
+	if(pos >= Extent)
+	{
+		size = 0;
+		pos = Extent - 1;
+	}
+	
+	if(pos + size > Extent)
+	{
+		unsigned char delta = (pos + size) - Extent;
+		if(delta > size)
+		{
+			size = 0;
+		}
+		else
+		{
+			size -= delta;
+		}
+	}
+}
 
 // Set a block of pixels in a buffer to a particular value
 void SolidFill(unsigned char x, unsigned char y, unsigned char width, unsigned char height, unsigned char color, unsigned char *buffer)
 {
+	Clamp<BufferWidth>(x, width);
+	Clamp<BufferHeight>(y, height);
+	
 	for(unsigned char iy = y, sy = y + height; iy < sy; ++iy)
 	{
 		for(unsigned char ix = x, sx = x + width; ix < sx; ++ix)
 		{
-			SetPix(ix, iy, color, buffer);
+			SetPixUnsafe(ix, iy, color, buffer);
 		}
 	}
 }
@@ -100,11 +144,16 @@ void Fill(unsigned char x, unsigned char y, unsigned char width, unsigned char h
 // Copy a block of pixels in a buffer to somewhere else
 void Copy(unsigned char srcX, unsigned char srcY, unsigned char dstX, unsigned char dstY, unsigned char width, unsigned char height, unsigned char *srcBuffer, unsigned char *dstBuffer)
 {
+	Clamp<BufferWidth>(srcX, width);
+	Clamp<BufferHeight>(srcY, height);
+	Clamp<BufferWidth>(dstX, width);
+	Clamp<BufferHeight>(dstY, height);
+
 	for(unsigned char sy = srcY, dy = dstY, ey = srcY + height; sy < ey; ++sy, ++dy)
 	{
 		for(unsigned char sx = srcX, dx = dstX, ex = srcX + width; sx < ex; ++sx, ++dx)
 		{
-			SetPix(dx, dy, GetPix(sx, sy, srcBuffer), dstBuffer);
+			SetPixUnsafe(dx, dy, GetPixUnsafe(sx, sy, srcBuffer), dstBuffer);
 		}
 	}
 }
@@ -201,8 +250,8 @@ static inline void LatchInFrameSwap()
 		g_DisplayReg.SwapRequest = false;
 		
 		g_DisplayReg.BufferSelect = !g_DisplayReg.BufferSelect;
-		g_DisplayReg.FrontBuffer = g_DisplayReg.Buffers[g_DisplayReg.BufferSelect];
-		g_DisplayReg.BackBuffer = g_DisplayReg.Buffers[!g_DisplayReg.BufferSelect];
+		g_DisplayReg.FrontBuffer = g_DisplayReg.BufferSelect == 0 ? g_Buffer0 : g_Buffer1;
+		g_DisplayReg.BackBuffer = g_DisplayReg.BufferSelect == 0 ? g_Buffer1 : g_Buffer0;
 	}
 }
 
@@ -382,8 +431,8 @@ void ConfigureDisplay()
 	TIMSK2 |= (1 << OCIE2A);
 	
 	// omitted fields are 0 initialized
-	g_DisplayReg.FrontBuffer = g_DisplayReg.Buffers[0];
-	g_DisplayReg.BackBuffer = g_DisplayReg.Buffers[1];
+	g_DisplayReg.FrontBuffer = g_Buffer0;
+	g_DisplayReg.BackBuffer = g_Buffer1;
 	g_DisplayReg.BrightnessLevel = BrightnessLevels / 2;
 	g_DisplayReg.GammaTable[0] = 1;
 	g_DisplayReg.GammaTable[1] = 4;

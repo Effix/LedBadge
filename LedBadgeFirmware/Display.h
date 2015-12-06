@@ -53,7 +53,6 @@ struct DisplayState
 	unsigned char GammaTable[BufferBitPlanes];					// hold timings for the bit-planes
 	unsigned char *FrontBuffer;									// current front buffer
 	unsigned char *BackBuffer;									// current back buffer
-	unsigned char Buffers[BufferCount][BufferLength];			// the storage for the front and back buffers
 };
 
 extern DisplayState g_DisplayReg;
@@ -117,9 +116,15 @@ void EnableDisplay(bool enable);
 // Inline implementations
 //
 
+extern "C" unsigned char c_PixMasks[8];
+
+inline void SetPixUnsafe(unsigned char x, unsigned char y, unsigned char val, unsigned char *buffer) __attribute__ ((always_inline));
+inline unsigned char GetPixUnsafe(unsigned char x, unsigned char y, unsigned char *buffer) __attribute__ ((always_inline));
+
 // Sets a pixel value in a buffer
 inline void SetPixUnsafe(unsigned char x, unsigned char y, unsigned char val, unsigned char *buffer)
 {
+	/*
 	// figure out the packed bit position and mask for the bit-plane
 	const unsigned char xBitPos = 7 - (x & 7);
 	const unsigned char xPos = x >> 3;
@@ -134,6 +139,103 @@ inline void SetPixUnsafe(unsigned char x, unsigned char y, unsigned char val, un
 	*p = (*p & mask) | (val > 1 ? bit : 0);
 	p += BufferBitPlaneLength;
 	*p = (*p & mask) | (val > 2 ? bit : 0);
+	*/
+	
+	asm volatile 
+	(
+		"ldi     r23, %[stride]"				"\n\t"  // build y offset
+		"mul     %[y], r23"						"\n\t"  // 
+		"add     %[buffer], r0"					"\n\t"  // add y offset to the buffer pointer
+		
+		"ldi     r27, 0"						"\n\t"  // initialize the pointer to the mask bit with the 
+		"mov     r26, %[x]"						"\n\t"  //   bottom 3 bits of the x location as the offset
+		"andi    r26, 7"						"\n\t"  // 
+		"subi    r26, lo8(-(c_PixMasks))"		"\n\t"  // add the start of the mask list to the offset
+		"sbci    r27, hi8(-(c_PixMasks))"		"\n\t"  // 
+		"ld      r23, x"						"\n\t"  // load mask bit
+		
+		"lsr     %[x]"							"\n\t"  // build x offset
+		"lsr     %[x]"							"\n\t"  //
+		"lsr     %[x]"							"\n\t"  // 
+		"add     %[buffer], %[x]"				"\n\t"  // add y offset to the buffer pointer
+
+		"cpi     %[val], 3"						"\n\t"  // jump to fill pattern
+		"breq    .L_VAL_3_%="					"\n\t"  // 
+		"cpi     %[val], 2"						"\n\t"  // 
+		"breq    .L_VAL_2_%="					"\n\t"  // 
+		"cpi     %[val], 1"						"\n\t"  // 
+		"breq    .L_VAL_1_%="					"\n\t"  // 
+
+		".L_VAL_0_%=:"							"\n\t"  // pattern for val == 0
+		"com     r23"							"\n\t"  // invert bit into a mask
+		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // clear plane bit
+		"and     __tmp_reg__, r23"				"\n\t"  // 
+		"st      %a[buffer], __tmp_reg__"		"\n\t"  // 
+		"subi    %[buffer], -%[length]"			"\n\t"  // offset to next bit plane
+		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // clear plane bit
+		"and     __tmp_reg__, r23"				"\n\t"  // 
+		"st      %a[buffer], __tmp_reg__"		"\n\t"  // 
+		"subi    %[buffer], -%[length]"			"\n\t"  // offset to next bit plane
+		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // clear plane bit
+		"and     __tmp_reg__, r23"				"\n\t"  // 
+		"st      %a[buffer], __tmp_reg__"		"\n\t"  // 
+		"rjmp    .L_END_%="						"\n\t"  // end function
+		
+		".L_VAL_1_%=:"							"\n\t"  // pattern for val == 1
+		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // set plane bit
+		"or      __tmp_reg__, r23"				"\n\t"  // 
+		"st      %a[buffer], __tmp_reg__"		"\n\t"  // 
+		"subi    %[buffer], -%[length]"			"\n\t"  // offset to next bit plane
+		"com     r23"							"\n\t"  // invert bit into a mask
+		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // clear plane bit
+		"and     __tmp_reg__, r23"				"\n\t"  // 
+		"st      %a[buffer], __tmp_reg__"		"\n\t"  // 
+		"subi    %[buffer], -%[length]"			"\n\t"  // offset to next bit plane
+		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // clear plane bit
+		"and     __tmp_reg__, r23"				"\n\t"  // 
+		"st      %a[buffer], __tmp_reg__"		"\n\t"  // 
+		"rjmp    .L_END_%="						"\n\t"  // end function
+		
+		".L_VAL_2_%=:"							"\n\t"  // pattern for val == 2
+		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // set plane bit
+		"or      __tmp_reg__, r23"				"\n\t"  // 
+		"st      %a[buffer], __tmp_reg__"		"\n\t"  // 
+		"subi    %[buffer], -%[length]"			"\n\t"  // offset to next bit plane
+		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // set plane bit
+		"or      __tmp_reg__, r23"				"\n\t"  // 
+		"st      %a[buffer], __tmp_reg__"		"\n\t"  // 
+		"subi    %[buffer], -%[length]"			"\n\t"  // offset to next bit plane
+		"com     r23"							"\n\t"  // invert bit into a mask
+		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // clear plane bit
+		"and     __tmp_reg__, r23"				"\n\t"  // 
+		"st      %a[buffer], __tmp_reg__"		"\n\t"  // 
+		"rjmp    .L_END_%="						"\n\t"  // end function
+		
+		".L_VAL_3_%=:"							"\n\t"  // pattern for val == 3
+		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // set plane bit
+		"or      __tmp_reg__, r23"				"\n\t"  // 
+		"st      %a[buffer], __tmp_reg__"		"\n\t"  // 
+		"subi    %[buffer], -%[length]"			"\n\t"  // offset to next bit plane
+		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // set plane bit
+		"or      __tmp_reg__, r23"				"\n\t"  // 
+		"st      %a[buffer], __tmp_reg__"		"\n\t"  // 
+		"subi    %[buffer], -%[length]"			"\n\t"  // offset to next bit plane
+		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // set plane bit
+		"or      __tmp_reg__, r23"				"\n\t"  // 
+		"st      %a[buffer], __tmp_reg__"		"\n\t"  // 
+		
+		".L_END_%=:"							"\n\t"
+		
+		:   "+r" (x),
+			"+r" (buffer)
+		:	[x] "r" (x),
+			[y] "r" (y),
+			[val] "r" (val),
+			[buffer] "e" (buffer),
+			[stride] "M" (BufferBitPlaneStride),
+			[length] "M" (BufferBitPlaneLength)
+		:	"r23", "r26", "r27"
+	);
 }
 
 // Sets a pixel value in a buffer
