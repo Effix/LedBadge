@@ -22,7 +22,9 @@ namespace LedBadgeLib
         Fill,
         Copy,
         SetPowerOnImage,
-        SetHoldTimings
+        SetHoldTimings,
+        SetIdleTimeout,
+        GetBufferFullness
     }
 
     public enum Target: byte
@@ -197,6 +199,19 @@ namespace LedBadgeLib
 
             stream.WriteByte((byte)(((byte)CommandCodes.SetHoldTimings << 4) | a));
             stream.WriteByte((byte)((b << 4) | c));
+        }
+        
+        public static void SetIdleTimeout(Stream stream, bool fade, bool resetToBootImage, int timeout)
+        {
+            System.Diagnostics.Debug.Assert(timeout >= 0 && timeout <= 255);
+            
+            stream.WriteByte((byte)(((byte)CommandCodes.SetIdleTimeout << 4) | ((fade ? 1 : 0) << 3) | ((resetToBootImage ? 1 : 0) << 2)));
+            stream.WriteByte((byte)timeout);
+        }
+
+        public static void GetBufferFullness(Stream stream)
+        {
+            stream.WriteByte((byte)CommandCodes.GetBufferFullness << 4);
         }
     }
 }

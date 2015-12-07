@@ -307,21 +307,7 @@ static inline void SetBrightnessLevelRegisters(unsigned char level)
 {
 	// the OE (output enable) signal is wired up to one of the pwm pins, so this has way more intensity levels than we can generate with the gray scale bit-planes
 	// since it is a separate pin, it overlays nicely, but dim values can end up looking a little flickery
-	if(level)
-	{
-		// grab the pwm duty cycle from the look up table
-		TCCR0A |= (1 << COM0B0) | (1 << COM0B1);
-		TCCR0B |= (1 << CS00);
-		OCR0B = pgm_read_byte(&g_BrightnessTable[level]);
-	}
-	else
-	{
-		// ...or just totally off
-		TCCR0A &= ~((1 << COM0B0) | (1 << COM0B1));
-		TCCR0B &= ~(1 << CS00);
-		OCR0B = ~0;
-		TCNT0 = 0;
-	}
+	OCR0B = pgm_read_byte(&g_BrightnessTable[level]);
 }
 
 // Commits the requested brightness change when it is safe to do so
@@ -422,7 +408,8 @@ void ConfigureDisplay()
 	PORTD &= ~((1 << PORTD7) | (1 << PORTD6) | (1 << PORTD5));
 	
 	// brightness pwm timer (initialize to disabled state)
-	TCCR0A |= (1 << WGM00) | (1 << WGM01);
+	TCCR0A |= (1 << WGM00) | (1 << WGM01) | (1 << COM0B0) | (1 << COM0B1);
+	TCCR0B |= (1 << CS00);
 	SetBrightnessLevelRegisters(0);
 	
 	// refresh timer

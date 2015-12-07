@@ -37,8 +37,8 @@
 
 #define NextWord() asm volatile ( \
 		"ld		 __tmp_reg__, -%a[buffer]"		"\n\t"	/* load next 8 pixels and move pointer to previous byte */ \
-		:   "=e" (b)									\
-		:	[buffer] "e" (b)							\
+		:   [buffer] "+e" (b)							\
+		:	/* none */									\
 	);
 
 #define OutputPix(BIT) asm volatile ( \

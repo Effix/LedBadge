@@ -16,7 +16,8 @@ namespace LedBadgeLib
         PixRect,
         Inputs,
         BadCommand,
-        ReceiveOverflow
+        ReceiveOverflow,
+        BufferState
     }
 
     public static class BadgeResponses
@@ -31,6 +32,7 @@ namespace LedBadgeLib
             switch(response)
             {
                 case ResponseCodes.PixRect: return 2;
+                case ResponseCodes.BufferState: return 2;
                 default: return 1;
             }
         }
@@ -47,7 +49,7 @@ namespace LedBadgeLib
                     int headerLen = BadgeResponses.DecodePixRect(buffer, offset, out width, out height, out rectBufferLength);
                     return headerLen + rectBufferLength;
                 }
-                default: return 1;
+                default: return GetMinResponseLength(response);
             }
         }
 
@@ -113,6 +115,14 @@ namespace LedBadgeLib
             System.Diagnostics.Debug.Assert((ResponseCodes)(buffer[offset] >> 4) == ResponseCodes.ReceiveOverflow);
 
             return 1;
+        }
+
+        public static int DecodeBufferState(byte[] buffer, int offset, out int bufferSize)
+        {
+            System.Diagnostics.Debug.Assert((ResponseCodes)(buffer[offset] >> 4) == ResponseCodes.BufferState);
+
+            bufferSize = buffer[offset + 1];
+            return 2;
         }
     }
 }

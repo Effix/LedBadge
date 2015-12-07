@@ -226,12 +226,10 @@ inline void SetPixUnsafe(unsigned char x, unsigned char y, unsigned char val, un
 		
 		".L_END_%=:"							"\n\t"
 		
-		:   "+r" (x),
-			"+r" (buffer)
-		:	[x] "r" (x),
-			[y] "r" (y),
+		:   [x] "+r" (x),
+			[buffer] "+e" (buffer)
+		:	[y] "r" (y),
 			[val] "r" (val),
-			[buffer] "e" (buffer),
 			[stride] "M" (BufferBitPlaneStride),
 			[length] "M" (BufferBitPlaneLength)
 		:	"r23", "r26", "r27"
@@ -290,32 +288,29 @@ inline unsigned char GetPixUnsafe(unsigned char x, unsigned char y, unsigned cha
 		
 		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // 
 		"and     __tmp_reg__, r23"				"\n\t"  // 
-		"breq    .L_P2_%="						"\n\t"  // 
+		"breq    .L_P2_%="						"\n\t"  // check bit plane value
 		"inc     %[result]"						"\n\t"  // 
 		
 		".L_P2_%=:"								"\n\t"  // 
-		"subi    %[buffer], -%[length]"			"\n\t"  // 
+		"subi    %[buffer], -%[length]"			"\n\t"  // offset to next bit plane
 		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // 
 		"and     __tmp_reg__, r23"				"\n\t"  // 
-		"breq    .L_P3_%="						"\n\t"  // 
+		"breq    .L_P3_%="						"\n\t"  // check bit plane value
 		"inc     %[result]"						"\n\t"  // 
 		
 		".L_P3_%=:"								"\n\t"  // 
-		"subi    %[buffer], -%[length]"			"\n\t"  // 
+		"subi    %[buffer], -%[length]"			"\n\t"  // offset to next bit plane
 		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // 
 		"and     __tmp_reg__, r23"				"\n\t"  // 
-		"breq    .L_END_%="						"\n\t"  // 
+		"breq    .L_END_%="						"\n\t"  // check bit plane value
 		"inc     %[result]"						"\n\t"  // 
 		
 		".L_END_%=:"							"\n\t"  // 
 		
-		:   "+r" (x),
-			"+r" (buffer),
-			"=r" (result)
-		:	[x] "r" (x),
-			[y] "r" (y),
-			[result] "r" (result),
-			[buffer] "e" (buffer),
+		:   [x] "+r" (x),
+			[buffer] "+e" (buffer),
+			[result] "+r" (result)
+		:	[y] "r" (y),
 			[stride] "M" (BufferBitPlaneStride),
 			[length] "M" (BufferBitPlaneLength)
 		:	"r23", "r26", "r27"
