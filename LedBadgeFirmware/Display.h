@@ -141,7 +141,7 @@ inline void SetPixUnsafe(unsigned char x, unsigned char y, unsigned char val, un
 	*p = (*p & mask) | (val > 2 ? bit : 0);
 	*/
 	
-	asm volatile 
+	asm volatile
 	(
 		"ldi     r23, %[stride]"				"\n\t"  // build y offset
 		"mul     %[y], r23"						"\n\t"  // 
@@ -251,6 +251,7 @@ inline void SetPix(unsigned char x, unsigned char y, unsigned char val, unsigned
 // Reads a pixel value from a buffer
 inline unsigned char GetPixUnsafe(unsigned char x, unsigned char y, unsigned char *buffer)
 {
+	/*
 	// figure out the packed bit position and mask for the bit-plane
 	const unsigned char xBitPos = 7 - (x & 7);
 	const unsigned char xPos = x >> 3;
@@ -266,6 +267,60 @@ inline unsigned char GetPixUnsafe(unsigned char x, unsigned char y, unsigned cha
 	if(*p & mask)
 		return 1;
 	return 0;
+	*/
+	
+	unsigned char result = 0;
+	asm volatile
+	(
+		"ldi     r23, %[stride]"				"\n\t"  // build y offset
+		"mul     %[y], r23"						"\n\t"  // 
+		"add     %[buffer], r0"					"\n\t"  // add y offset to the buffer pointer
+		
+		"ldi     r27, 0"						"\n\t"  // initialize the pointer to the mask bit with the 
+		"mov     r26, %[x]"						"\n\t"  //   bottom 3 bits of the x location as the offset
+		"andi    r26, 7"						"\n\t"  // 
+		"subi    r26, lo8(-(c_PixMasks))"		"\n\t"  // add the start of the mask list to the offset
+		"sbci    r27, hi8(-(c_PixMasks))"		"\n\t"  // 
+		"ld      r23, x"						"\n\t"  // load mask bit
+		
+		"lsr     %[x]"							"\n\t"  // build x offset
+		"lsr     %[x]"							"\n\t"  //
+		"lsr     %[x]"							"\n\t"  // 
+		"add     %[buffer], %[x]"				"\n\t"  // add y offset to the buffer pointer
+		
+		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // 
+		"and     __tmp_reg__, r23"				"\n\t"  // 
+		"breq    .L_P2_%="						"\n\t"  // 
+		"inc     %[result]"						"\n\t"  // 
+		
+		".L_P2_%=:"								"\n\t"  // 
+		"subi    %[buffer], -%[length]"			"\n\t"  // 
+		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // 
+		"and     __tmp_reg__, r23"				"\n\t"  // 
+		"breq    .L_P3_%="						"\n\t"  // 
+		"inc     %[result]"						"\n\t"  // 
+		
+		".L_P3_%=:"								"\n\t"  // 
+		"subi    %[buffer], -%[length]"			"\n\t"  // 
+		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // 
+		"and     __tmp_reg__, r23"				"\n\t"  // 
+		"breq    .L_END_%="						"\n\t"  // 
+		"inc     %[result]"						"\n\t"  // 
+		
+		".L_END_%=:"							"\n\t"  // 
+		
+		:   "+r" (x),
+			"+r" (buffer),
+			"=r" (result)
+		:	[x] "r" (x),
+			[y] "r" (y),
+			[result] "r" (result),
+			[buffer] "e" (buffer),
+			[stride] "M" (BufferBitPlaneStride),
+			[length] "M" (BufferBitPlaneLength)
+		:	"r23", "r26", "r27"
+	);
+	return result;
 }
 
 // Reads a pixel value from a buffer
