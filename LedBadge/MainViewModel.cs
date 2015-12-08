@@ -1,25 +1,19 @@
 ﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Ports;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
-using Tweetinvi.Core.Events.EventArguments;
 
 namespace LedBadge
 {
     enum DisplayMode
     {
+        Nothing,
         Messages,
         TestFill,
         TestCopy
@@ -39,9 +33,17 @@ namespace LedBadge
 
             m_frameTimer.Start();
 
+            HoldTimingA = 1;
+            HoldTimingB = 4;
+            HoldTimingC = 4;
+            IdleFade = true;
+            IdleResetToBootImage = true;
+            IdleTimeout = 255;
+
             var badgeDispatcher = new LedBadgeLib.BadgeResponsePassthroughDispatcher();
             badgeDispatcher.ResponseHandler += OnBadgeResponse;
             m_badgePump = new LedBadgeLib.BadgePump(badgeDispatcher);
+            DisplayMode = DisplayMode.Nothing;
             m_badgePump.RenderFrame += OnRenderFrame;
             m_badgePump.FrameReady += OnFrameReady;
             m_badgePump.GenerateCommands += OnGenerateCommands;
@@ -52,6 +54,13 @@ namespace LedBadge
             TwitterProvider = new TwitterProvider(Dispatcher, m_messageScene.Queue);
             RawMovieProvider = new RawMovieProvider(Dispatcher, m_messageScene.Queue);
         }
+
+        public byte HoldTimingA { get; set; }
+        public byte HoldTimingB { get; set; }
+        public byte HoldTimingC { get; set; }
+        public bool IdleFade { get; set; }
+        public bool IdleResetToBootImage { get; set; }
+        public byte IdleTimeout { get; set; }
 
         public byte Brightness { get { return m_badgePump.Brightness; } set { m_badgePump.Brightness = value; } }
         public bool RotateFrame { get { return m_badgePump.RotateFrame; } set { m_badgePump.RotateFrame = value; } }
@@ -187,7 +196,7 @@ namespace LedBadge
 
         void TestPattern(MemoryStream commands)
         {
-            byte[] buffer = new byte[LedBadgeLib.BadgeCaps.FrameSize];
+            byte[] buffer = new byte[LedBadgeLib.BadgeCaps.FrameStride * 2];
             for(int i = 0; i < buffer.Length; ++i)
             {
                 buffer[i] = 0xE4;
@@ -294,6 +303,13 @@ namespace LedBadge
                     LogMessage("{0} [{1}]", code, version);
                     break;
                 }
+                case LedBadgeLib.ResponseCodes.BufferState:
+                {
+                    int size;
+                    LedBadgeLib.BadgeResponses.DecodeBufferState(response, 0, out size);
+                    LogMessage("{0} [{1}]", code, size);
+                    break;
+                }
                 default:
                 {
                     LogMessage(code.ToString());
@@ -374,27 +390,33 @@ namespace LedBadge
             m_badgePump.EnqueueCommandsAsync(commands);
         }
 
+        public void GetBufferState()
+        {
+            var commands = new MemoryStream();
+            LedBadgeLib.BadgeCommands.GetBufferFullness(commands);
+            m_badgePump.EnqueueCommandsAsync(commands);
+        }
+
+        public void SetHoldTimings(int a, int b, int c)
+        {
+            var commands = new MemoryStream();
+            LedBadgeLib.BadgeCommands.SetHoldTimings(commands, a, b, c);
+            m_badgePump.EnqueueCommandsAsync(commands);
+        }
+
+        public void SetIdleTimeout(bool fade, bool resetToBootImage, int timeout)
+        {
+            var commands = new MemoryStream();
+            LedBadgeLib.BadgeCommands.SetIdleTimeout(commands, fade, resetToBootImage, timeout);
+            m_badgePump.EnqueueCommandsAsync(commands);
+        }
+
         public void SetBootImage()
         {
             var commands = new MemoryStream();
             LedBadgeLib.BadgeCommands.SetPowerOnImage(commands);
             LedBadgeLib.BadgeCommands.Ping(commands, 15);
             m_badgePump.EnqueueCommandsAsync(commands);
-        }
-    }
-
-    class EnumerationExtension: MarkupExtension
-    {
-        public EnumerationExtension(Type enumType)
-        {
-            Type = enumType;
-        }
-
-        public Type Type { get; private set; }
-
-        public override object ProvideValue(IServiceProvider serviceProvider)
-        {
-            return Enum.GetValues(Type);
         }
     }
 }

@@ -63,6 +63,7 @@ namespace LedBadgeLib
         public event BadgeCommandEvenHandler GenerateCommands;
         public event BadgeCommandEvenHandler ReadyToSend;
 
+        int m_prevBrightness = -1;
         IBadgeResponseDispatcher m_responseDispatcher;
         BadgeConnection m_connection;
         ConcurrentQueue<MemoryStream> m_pendingCommands = new ConcurrentQueue<MemoryStream>();
@@ -104,6 +105,7 @@ namespace LedBadgeLib
         {
             if(!Connected)
             {
+                m_prevBrightness = -1;
                 m_connection = new BadgeConnection(port, m_responseDispatcher);
             }
             else
@@ -120,7 +122,11 @@ namespace LedBadgeLib
         void RunFrame()
         {
             var commands = new MemoryStream();
-            BadgeCommands.SetBrightness(commands, Brightness);
+            if(m_prevBrightness != Brightness)
+            {
+                m_prevBrightness = Brightness;
+                BadgeCommands.SetBrightness(commands, Brightness);
+            }
 
             if(UseFrameBuffer)
             {
@@ -160,15 +166,26 @@ namespace LedBadgeLib
                 readyToSend(this, new BadgeCommandEventArgs(commands));
             }
 
+            SendFrame(commands);
+        }
+
+        void SendFrame(MemoryStream commands)
+        {
             if(Connected)
             {
                 MemoryStream additionalCommands;
                 while(m_pendingCommands.TryDequeue(out additionalCommands))
                 {
-                    m_connection.Send(additionalCommands, false);
+                    if(additionalCommands.Length > 0)
+                    {
+                        m_connection.Send(additionalCommands, false);
+                    }
                 }
 
-                m_connection.Send(commands, true);
+                if(commands.Length > 0)
+                {
+                    m_connection.Send(commands, true);
+                }
             }
             else
             {

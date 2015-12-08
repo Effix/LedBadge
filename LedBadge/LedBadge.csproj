@@ -119,6 +119,7 @@
     <Compile Include="ImageProvider.cs" />
     <Compile Include="TextProvider.cs" />
     <Compile Include="TwitterProvider.cs" />
+    <Compile Include="ViewHelpers.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>

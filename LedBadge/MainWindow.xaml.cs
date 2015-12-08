@@ -75,9 +75,24 @@ namespace LedBadge
             m_vm.GetImage();
         }
 
+        private void GetBuffer(object sender, RoutedEventArgs e)
+        {
+            m_vm.GetBufferState();
+        }
+
         private void SetBootImage(object sender, RoutedEventArgs e)
         {
             m_vm.SetBootImage();
+        }
+
+        private void SetHoldTimings(object sender, RoutedEventArgs e)
+        {
+            m_vm.SetHoldTimings(m_vm.HoldTimingA, m_vm.HoldTimingB, m_vm.HoldTimingC);
+        }
+
+        private void SetIdleTimeout(object sender, RoutedEventArgs e)
+        {
+            m_vm.SetIdleTimeout(m_vm.IdleFade, m_vm.IdleResetToBootImage, m_vm.IdleTimeout);
         }
 
         private void ClearLog(object sender, RoutedEventArgs e)
