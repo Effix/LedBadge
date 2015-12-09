@@ -39,7 +39,13 @@ I was lucky and got a nice bodge wire hanging out there.
 
 # Installing
 
-...
+##### Driver software:
+Installation of the Prolific PL2303 serial over usb driver is going to be the same as with the stock setup.
+
+I was unfortunate to get a board with a counterfit PL2303 on it and the newer drivers refuse to initialize it - even the version on the disc that came with the badge. I had to roll way back to a Windows Vista version of the driver to get it to work.
+
+##### Firmware:
+You will need an external ISP programmer to update the firmware on the badge. An AVR Dragon works nicely. Be mindful of the ISP header pinout since it may vary between board revisions.
 
 # Libraries
 
