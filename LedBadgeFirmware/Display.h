@@ -42,6 +42,7 @@ struct DisplayState
 	unsigned char BitPlaneHold;									// remaining count on current bit-plane
 	const unsigned char *BufferP;								// points at the next 8 pixels to go out
 	volatile bool FrameChanged;									// true if frame just changed
+	volatile bool TimeoutAllowUpdate;							// true if timeout counter can change
 	unsigned char TimeoutTrigger;								// idle frame count threshold
 	unsigned char TimeoutCounter;								// idle frames so far...
 	unsigned char FadeState;									// current action for the fade state machine

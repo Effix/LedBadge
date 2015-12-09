@@ -16,7 +16,8 @@ namespace LedBadge
         Nothing,
         Messages,
         TestFill,
-        TestCopy
+        TestCopy,
+        TestFrame
     }
 
     class MainViewModel: INotifyPropertyChanged
@@ -34,7 +35,7 @@ namespace LedBadge
             m_frameTimer.Start();
 
             HoldTimingA = 1;
-            HoldTimingB = 4;
+            HoldTimingB = 3;
             HoldTimingC = 4;
             IdleFade = true;
             IdleResetToBootImage = true;
@@ -89,7 +90,7 @@ namespace LedBadge
             set
             {
                 m_displayMode = value;
-                m_badgePump.UseFrameBuffer = m_displayMode == DisplayMode.Messages;
+                m_badgePump.UseFrameBuffer = m_displayMode == DisplayMode.Messages || m_displayMode == DisplayMode.TestFrame;
             }
         }
 
@@ -147,10 +148,22 @@ namespace LedBadge
 
         void OnRenderFrame(object sender, LedBadgeLib.BadgeFrameEventArgs args)
         {
-            LedBadgeLib.BadgePump pump = (LedBadgeLib.BadgePump)sender;
-            m_messageScene.Update(1.0f / pump.FrameRate);
-            m_messageScene.Render(args.Frame, 0, 0);
-            Frame++;
+            switch(DisplayMode)
+            {
+                case DisplayMode.Messages:
+                {
+                    LedBadgeLib.BadgePump pump = (LedBadgeLib.BadgePump)sender;
+                    m_messageScene.Update(1.0f / pump.FrameRate);
+                    m_messageScene.Render(args.Frame, 0, 0);
+                    Frame++;
+                    break;
+                }
+                case DisplayMode.TestFrame:
+                {
+                    TestFrame(args.Frame);
+                    break;
+                }
+            }
         }
 
         void OnFrameReady(object sender, LedBadgeLib.BadgeFrameEventArgs args)
@@ -181,12 +194,12 @@ namespace LedBadge
         {
             switch(DisplayMode)
             {
-                case LedBadge.DisplayMode.TestFill:
+                case DisplayMode.TestFill:
                 {
                     TestPattern(args.CommandStream);
                     break;
                 }
-                case LedBadge.DisplayMode.TestCopy:
+                case DisplayMode.TestCopy:
                 {
                     TestScroll(args.CommandStream);
                     break;
@@ -221,6 +234,11 @@ namespace LedBadge
             LedBadgeLib.BadgeCommands.CopyRect(commands, 47, 11, 1, 1, 0, 0, LedBadgeLib.Target.FrontBuffer, LedBadgeLib.Target.BackBuffer);
 
             LedBadgeLib.BadgeCommands.Swap(commands);
+        }
+
+        void TestFrame(LedBadgeLib.BadgeRenderTarget frame)
+        {
+            LedBadgeLib.ScreenCapture.ReadScreenAtMousePosition(frame.IntermediateImage, LedBadgeLib.BadgeCaps.Width, LedBadgeLib.BadgeCaps.Height);
         }
 
         void OnBadgeResponse(object sender, LedBadgeLib.BadgeResponseEventArgs args)

@@ -36,7 +36,7 @@ namespace LedBadge
 
         void LogMessage(UIElement messageElement)
         {
-            int maxMessages = 512;
+            int maxMessages = 128;
             if(Log.Children.Count >= maxMessages)
             {
                 Log.Children.RemoveRange(0, Log.Children.Count - maxMessages + 1);

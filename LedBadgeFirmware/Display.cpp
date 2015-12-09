@@ -285,6 +285,7 @@ void SetIdleTimeout(unsigned char fade, unsigned char resetToBootImage, unsigned
 void ResetIdleTime()
 {
 	g_DisplayReg.TimeoutCounter = 0;
+	g_DisplayReg.TimeoutAllowUpdate = true;
 }
 
 // Stops and clears any in progress fade
@@ -324,7 +325,7 @@ static inline void LatchInBrightness()
 // Updates the timeout state machine
 static inline void PumpTimeout()
 {
-	if(g_DisplayReg.TimeoutTrigger < 255 && g_DisplayReg.FadeState == FadingAction::None)
+	if(g_DisplayReg.TimeoutTrigger < 255 && g_DisplayReg.FadeState == FadingAction::None && g_DisplayReg.TimeoutAllowUpdate)
 	{
 		if(g_DisplayReg.TimeoutCounter >= g_DisplayReg.TimeoutTrigger)
 		{
@@ -345,6 +346,8 @@ static inline void PumpTimeout()
 				
 				g_DisplayReg.TimeoutCounter = 0;
 			}
+			
+			g_DisplayReg.TimeoutAllowUpdate = false;
 		}
 		else
 		{
@@ -422,7 +425,7 @@ void ConfigureDisplay()
 	g_DisplayReg.BackBuffer = g_Buffer1;
 	g_DisplayReg.BrightnessLevel = BrightnessLevels / 2;
 	g_DisplayReg.GammaTable[0] = 1;
-	g_DisplayReg.GammaTable[1] = 4;
+	g_DisplayReg.GammaTable[1] = 3;
 	g_DisplayReg.GammaTable[2] = 4;
 	g_DisplayReg.Y = BufferHeight - 1;
 	g_DisplayReg.Half = 1;

@@ -70,9 +70,9 @@ namespace LedBadgeLib
         [DllImport("gdi32.dll")]
         static extern IntPtr SelectObject(IntPtr hdc, IntPtr bmp);
         [DllImport("user32.dll")]
-        public static extern IntPtr GetDesktopWindow();
+        static extern IntPtr GetDesktopWindow();
         [DllImport("user32.dll")]
-        public static extern IntPtr GetWindowDC(IntPtr ptr);
+        static extern IntPtr GetWindowDC(IntPtr ptr);
 
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]

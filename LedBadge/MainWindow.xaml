@@ -91,15 +91,15 @@
                                     <Button Content="Set Startup Image" Click="SetBootImage" Style="{StaticResource EnableWhenConnected}"/>
                                     <DockPanel Margin="0,5,0,1" ToolTip="Hold for the darker gray value">
                                         <TextBlock DockPanel.Dock="Left" Text="Hold Timing A" Margin="0,0,5,0"/>
-                                        <Slider Minimum="0" Maximum="15" Value="{Binding HoldTimingA}"/>
+                                        <Slider Minimum="1" Maximum="15" Value="{Binding HoldTimingA}"/>
                                     </DockPanel>
                                     <DockPanel Margin="0,0,0,1" ToolTip="Hold for the lighter gray value (additive with A)">
                                         <TextBlock DockPanel.Dock="Left" Text="Hold Timing B" Margin="0,0,5,0"/>
-                                        <Slider Minimum="0" Maximum="15" Value="{Binding HoldTimingB}"/>
+                                        <Slider Minimum="1" Maximum="15" Value="{Binding HoldTimingB}"/>
                                     </DockPanel>
                                     <DockPanel Margin="0,0,0,1" ToolTip="Hold for the brightest value (additive with A and B)">
                                         <TextBlock DockPanel.Dock="Left" Text="Hold Timing C" Margin="0,0,5,0"/>
-                                        <Slider Minimum="0" Maximum="15" Value="{Binding HoldTimingC}"/>
+                                        <Slider Minimum="1" Maximum="15" Value="{Binding HoldTimingC}"/>
                                     </DockPanel>
                                     <Button Content="Set Hold Timings" Click="SetHoldTimings" Style="{StaticResource EnableWhenConnected}"/>
                                     <CheckBox Margin="0,5,0,0" ToolTip="Enable fading when the idle reset kicks in" Content="Idle Fade out" IsChecked="{Binding IdleFade}"/>
