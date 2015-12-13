@@ -5,7 +5,7 @@
     
     Segments = 24
     Pixels per Segment = 24
-    Brightness Passes = 9 # this is with the 1, 5, 9 gamma spread
+    Brightness Passes = 8 # this is with the 1, 4, 8 gamma spread
     
     Frame Width = 48
     Frame Height = 12
@@ -21,7 +21,7 @@
     
     Measured Segment Cycles = 248 # measured
     Refresh Interval = 334
-    Refresh Rate = Speed / Refresh Interval / Segments / Brightness Passes => 166.334
+    Refresh Rate = Speed / Refresh Interval / Segments / Brightness Passes => 187.1257
     
     Cycles Left Over = Speed * ((Refresh Interval - Measured Segment Cycles) / Refresh Interval) => 3,089,820.3593
     Cycles per Frame = Cycles Left Over / Target Frame Rate => 51,497.006

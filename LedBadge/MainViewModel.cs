@@ -155,7 +155,6 @@ namespace LedBadge
                     LedBadgeLib.BadgePump pump = (LedBadgeLib.BadgePump)sender;
                     m_messageScene.Update(1.0f / pump.FrameRate);
                     m_messageScene.Render(args.Frame, 0, 0);
-                    Frame++;
                     break;
                 }
                 case DisplayMode.TestFrame:
@@ -164,6 +163,7 @@ namespace LedBadge
                     break;
                 }
             }
+            Frame++;
         }
 
         void OnFrameReady(object sender, LedBadgeLib.BadgeFrameEventArgs args)

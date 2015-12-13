@@ -179,6 +179,14 @@ namespace LedBadgeLib
             stream.WriteByte((byte)(((byte)y << 4) | ((byte)target << 2)));
         }
 
+        /// <summary>
+        /// Requests a block of pixels from a buffer.
+        /// <param name="x">The horizontal location ranging from 0 to 41.</param>
+        /// <param name="y">The vertical location ranging from 0 to 11.</param>
+        /// <param name="width">The width of the rectangle. The right edge (x + width) must not exceed the width of the badge.</param>
+        /// <param name="height">The height of the rectangle. The bottom edge (y + height) must not exceed the height of the badge.</param>
+        /// <param name="target">The buffer to query.</param>
+        /// </summary>
         public static void GetPixelRect(Stream stream, int x, int y, int width, int height, Target target)
         {
             System.Diagnostics.Debug.Assert(x >= 0);
@@ -196,6 +204,15 @@ namespace LedBadgeLib
             stream.WriteByte((byte)((y << 4) | height));
         }
 
+        /// <summary>
+        /// Writes a single value to a block of pixels in a buffer.
+        /// <param name="x">The horizontal location ranging from 0 to 41.</param>
+        /// <param name="y">The vertical location ranging from 0 to 11.</param>
+        /// <param name="width">The width of the rectangle. The right edge (x + width) must not exceed the width of the badge.</param>
+        /// <param name="height">The height of the rectangle. The bottom edge (y + height) must not exceed the height of the badge.</param>
+        /// <param name="target">The buffer to query.</param>
+        /// <param name="color">The value (0-3) to send.</param>
+        /// </summary>
         public static void SolidFillRect(Stream stream, int x, int y, int width, int height, Target target, int color)
         {
             System.Diagnostics.Debug.Assert(x >= 0);
@@ -214,6 +231,15 @@ namespace LedBadgeLib
             stream.WriteByte((byte)((y << 4) | height));
         }
 
+        /// <summary>
+        /// Sets a block of pixels in a buffer to the given data (2bpp packed).
+        /// <param name="x">The horizontal location ranging from 0 to 41.</param>
+        /// <param name="y">The vertical location ranging from 0 to 11.</param>
+        /// <param name="width">The width of the rectangle. The right edge (x + width) must not exceed the width of the badge.</param>
+        /// <param name="height">The height of the rectangle. The bottom edge (y + height) must not exceed the height of the badge.</param>
+        /// <param name="target">The buffer to query.</param>
+        /// <param name="data">The pixels to send, packed tightly. The length of this buffer must match the pixel count, packed as 2bpp and rounded up to the nearest byte.</param>
+        /// </summary>
         public static void FillRect(Stream stream, int x, int y, int width, int height, Target target, byte[] data)
         {
             System.Diagnostics.Debug.Assert(x >= 0);
@@ -233,6 +259,17 @@ namespace LedBadgeLib
             stream.Write(data, 0, data.Length);
         }
 
+        /// <summary>
+        /// Copies a block of pixels from a location in a buffer to another.
+        /// <param name="srcX">The horizontal location of the source rectangle ranging from 0 to 41.</param>
+        /// <param name="srcY">The vertical location of the source rectangle ranging from 0 to 11.</param>
+        /// <param name="width">The width of the rectangle. The right edge (x + width) must not exceed the width of the badge.</param>
+        /// <param name="height">The height of the rectangle. The bottom edge (y + height) must not exceed the height of the badge.</param>
+        /// <param name="dstX">The horizontal location of the destination rectangle ranging from 0 to 41.</param>
+        /// <param name="dstY">The vertical location of the destination rectangle ranging from 0 to 11.</param>
+        /// <param name="srcTarget">The buffer to read.</param>
+        /// <param name="dstTarget">The buffer to write.</param>
+        /// </summary>
         public static void CopyRect(Stream stream, int srcX, int srcY, int width, int height, int dstX, int dstY, Target srcTarget, Target dstTarget)
         {
             System.Diagnostics.Debug.Assert(srcX >= 0);
@@ -258,21 +295,37 @@ namespace LedBadgeLib
             stream.WriteByte((byte)((height << 4) | ((byte)srcTarget << 2) | (byte)dstTarget));
         }
 
+        /// <summary>
+        /// Sets the initial frame when first powered up (saves the front buffer to non-volatile memory).
+        /// </summary>
         public static void SetPowerOnImage(Stream stream)
         {
             stream.WriteByte((byte)CommandCodes.SetPowerOnImage << 4);
         }
 
+        /// <summary>
+        /// Controls the gray scale levels by setting the hold levels between the bit-planes.
+        /// The values are cumulative, so specifying 1, 3, 4 will hold for 1, 4, 8 refresh periods.
+        /// <param name="a">Hold for darker gray values.</param>
+        /// <param name="b">Hold for lighter gray values.</param>
+        /// <param name="c">Hold for brightest values.</param>
+        /// </summary>
         public static void SetHoldTimings(Stream stream, int a, int b, int c)
         {
-            System.Diagnostics.Debug.Assert(a >= 0 && a <= 15);
-            System.Diagnostics.Debug.Assert(b >= 0 && b <= 15);
-            System.Diagnostics.Debug.Assert(c >= 0 && c <= 15);
+            System.Diagnostics.Debug.Assert(a >= 1 && a <= 15);
+            System.Diagnostics.Debug.Assert(b >= 1 && b <= 15);
+            System.Diagnostics.Debug.Assert(c >= 1 && c <= 15);
 
             stream.WriteByte((byte)(((byte)CommandCodes.SetHoldTimings << 4) | a));
             stream.WriteByte((byte)((b << 4) | c));
         }
-        
+
+        /// <summary>
+        /// Sets the idle timeout duration and behavior.
+        /// <param name="fade">True to fade out and then fade back in. False to instantly change.</param>
+        /// <param name="resetToBootImage">True to restore the power on image. False to clear to black.</param>
+        /// <param name="timeout">Number of frames to wait before resetting. A value of 255 will disable the idle behavior.</param>
+        /// </summary>
         public static void SetIdleTimeout(Stream stream, bool fade, bool resetToBootImage, int timeout)
         {
             System.Diagnostics.Debug.Assert(timeout >= 0 && timeout <= 255);
@@ -281,6 +334,9 @@ namespace LedBadgeLib
             stream.WriteByte((byte)timeout);
         }
 
+        /// <summary>
+        /// Queries the state of the input buffer.
+        /// </summary>
         public static void GetBufferFullness(Stream stream)
         {
             stream.WriteByte((byte)CommandCodes.GetBufferFullness << 4);
