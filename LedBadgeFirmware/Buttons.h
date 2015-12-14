@@ -1,8 +1,6 @@
 #ifndef BUTTONS_H_
 #define BUTTONS_H_
 
-#include <avr/io.h>
-
 // Polls back buttons for input
 bool CheckButton0();
 bool CheckButton1();
