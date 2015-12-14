@@ -1,18 +1,21 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 11.00
+Microsoft Visual Studio Solution File, Format Version 12.00
 # Atmel Studio Solution File, Format Version 11.00
-Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "LedBadgeFirmware", "LedBadgeFirmware\LedBadgeFirmware.cppproj", "{97AA235B-9232-488D-BCB1-F74BD97474D6}"
+VisualStudioVersion = 14.0.23107.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "LedBadgeFirmware_8a", "LedBadgeFirmware\LedBadgeFirmware_8a.cppproj", "{97AA235B-9232-488D-BCB1-F74BD97474D6}"
+EndProject
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "LedBadgeFirmware_88pa", "LedBadgeFirmware\LedBadgeFirmware_88pa.cppproj", "{E7944DCC-6457-4AF8-8C62-6E4DB059EE7D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug|AVR = Debug|AVR
 		Release|AVR = Release|AVR
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{97AA235B-9232-488D-BCB1-F74BD97474D6}.Debug|AVR.ActiveCfg = Debug|AVR
-		{97AA235B-9232-488D-BCB1-F74BD97474D6}.Debug|AVR.Build.0 = Debug|AVR
 		{97AA235B-9232-488D-BCB1-F74BD97474D6}.Release|AVR.ActiveCfg = Release|AVR
 		{97AA235B-9232-488D-BCB1-F74BD97474D6}.Release|AVR.Build.0 = Release|AVR
+		{E7944DCC-6457-4AF8-8C62-6E4DB059EE7D}.Release|AVR.ActiveCfg = Release|AVR
+		{E7944DCC-6457-4AF8-8C62-6E4DB059EE7D}.Release|AVR.Build.0 = Release|AVR
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
