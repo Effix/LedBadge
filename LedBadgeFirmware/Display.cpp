@@ -306,9 +306,12 @@ static inline void StartFade()
 // Modifies the overall display brightness
 static inline void SetBrightnessLevelRegisters(unsigned char level)
 {
+#if defined(__AVR_ATmega88PA__)
 	// the OE (output enable) signal is wired up to one of the pwm pins, so this has way more intensity levels than we can generate with the gray scale bit-planes
 	// since it is a separate pin, it overlays nicely, but dim values can end up looking a little flickery
 	OCR0B = pgm_read_byte(&g_BrightnessTable[level]);
+#elif defined(__AVR_ATmega8A__)
+#endif
 }
 
 // Commits the requested brightness change when it is safe to do so
@@ -404,6 +407,7 @@ static inline void PumpFade()
 // Called once at program start
 void ConfigureDisplay()
 {
+#if defined(__AVR_ATmega88PA__)
 	// data and clock pins
 	DDRB |= (1 << PORTB1) | (1 << PORTB0);
 	PORTB &= ~((1 << PORTB1) | (1 << PORTB0));
@@ -417,9 +421,11 @@ void ConfigureDisplay()
 	
 	// refresh timer
 	TCCR2B |= (1 << CS21);
-	OCR2A = 344 / 8;
+	OCR2A = 344 / 8; // ~187hz @ 12mhz
 	TIMSK2 |= (1 << OCIE2A);
-	
+#elif defined(__AVR_ATmega8A__)
+#endif
+
 	// omitted fields are 0 initialized
 	g_DisplayReg.FrontBuffer = g_Buffer0;
 	g_DisplayReg.BackBuffer = g_Buffer1;
@@ -461,6 +467,7 @@ inline void RefreshDisplay()
 		(y * BufferBitPlaneStride) + 
 		(g_DisplayReg.Half == 0 ? BufferBitPlaneStride / 2 : BufferBitPlaneStride);
 
+#if defined(__AVR_ATmega88PA__)
 	unsigned char portB = PORTB & ~(1 << PORTB0); // shift register clock low
 	unsigned char portD_default = PORTD | (1 << PORTD7); // row select high
 	unsigned char portD_selectRow = PORTD & ~(1 << PORTD7); // row select low
@@ -616,6 +623,8 @@ inline void RefreshDisplay()
 	}
 	PORTD |= (1 << PORTD6); // storage register clock high
 	PORTD &= ~(1 << PORTD6); // storage register clock low
+#elif defined(__AVR_ATmega8A__)
+#endif
 	
 	// now do state machine book-keeping
 	if(g_DisplayReg.Half-- == 0)
@@ -647,9 +656,18 @@ inline void RefreshDisplay()
 }
 
 // Interrupt handler for timer to ensure that the display updates are regular and not delayed by any io or command processing
+#if defined(__AVR_ATmega88PA__)
 ISR(TIMER2_COMPA_vect, ISR_BLOCK)
 {
 	RefreshDisplay();
 	TIFR2 |= OCF2A;
 	TCNT2 = 0;
 }
+#elif defined(__AVR_ATmega8A__)
+ISR(TIMER2_COMP_vect, ISR_BLOCK)
+{
+	RefreshDisplay();
+	TIFR |= OCF2;
+	TCNT2 = 0;
+}
+#endif

@@ -42,13 +42,6 @@ void ConfigurePushButtons()
 	BTN_PORT_PULLUP_1 |= (1 << BTN_PORT_PULLUP_PIN_1);
 }
 
-// Helper for polling the buttons
-template<volatile uint8_t *PORT, int PIN> static inline bool CheckButton()
-{
-	// this should so some debouncing logic here...
-	return (*PORT & (1 << PIN)) == 0;
-}
-
 bool CheckButton0()
 {
 	// need debouncing logic? it is only polled on demand and not constantly...
