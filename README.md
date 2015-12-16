@@ -16,22 +16,40 @@ I am interested in using this as a small notification display attached to a comp
 ![Samples](https://raw.githubusercontent.com/Effix/LedBadge/master/images/samples.jpg)
 
 # The Hardware
-This particular badge is pretty generic and is easy to find under a few different brandings. The hardware is identifiable by two buttons on the back, a mini usb port that is used for data as well as power, and the 48x12 array of leds are packed at a 45 degree angle on the front. I have seen a seller on one popular online retailer even include pictures of the board inside as part of the listing.
+This particular badge is pretty generic and is easy to find under a few different brandings. Different variation in the components and layout exist and a couple are supported by this project.
+
+## Variant 1
+The hardware is identifiable by two buttons on the back (in a horazontal configuration), a mini usb port that is used for data as well as power, and the 48x12 array of SMD leds are packed at a 45 degree angle on the front. I have seen a seller on one popular online retailer even include pictures of the board inside as part of the listing.
 
 ##### Notable components:
-* Atmel ATMEGA88PA (8 kb program, 1 kb sram, 512 byte internal eeprom)
+* Atmel ATMega88PA (8 kb program, 1 kb sram, 512 byte internal eeprom)
 * Prolific PL2303 USB to serial interface
-* 12 MHz crystal oscillator
+* 12 MHz crystal oscillator (wired to the ATMega88PA)
 * 2 tact switches
 * 6 74hc595 8-bit shift registers that drive the leds (physically in a 24x24 configuration)
 * Atmel serial eeprom (possibly 32 kb, but unused by this firmware)
 * ISP header right below the microcontroller
 
-![Badge](https://raw.githubusercontent.com/Effix/LedBadge/master/images/badge.jpg)
-![Badge Back](https://raw.githubusercontent.com/Effix/LedBadge/master/images/board_back_sm.png)
-![Badge Front](https://raw.githubusercontent.com/Effix/LedBadge/master/images/board_front_sm.png)
+![Badge](https://raw.githubusercontent.com/Effix/LedBadge/master/images/badge_88pa.jpg)
+![Badge Back](https://raw.githubusercontent.com/Effix/LedBadge/master/images/board_88pa_back_sm.png)
+![Badge Front](https://raw.githubusercontent.com/Effix/LedBadge/master/images/board_88pa_front_sm.png)
 
 I was lucky and got a nice bodge wire hanging out there.
+
+## Variant 2
+Another supported variant of the badge is slightly smaller, the two buttons on the back are in a vertical configuration. The leds are still 45 degrees, but appear to be bonded to the board directly rather than SMD components. It uses a similar (but older) Atmel microcontroller. This variant also uses an older PL2303 as well that requires an external oscillator. Instead of serial shift registers, it uses parallel flip-flops to drive the leds. Because the xtal pins are used up on parallel output (and the usb serial controler is using the crystal anyway), this variant runs at 8 MHz instead of 12 MHz.
+
+##### Notable components:
+* Atmel ATMega8A (8 kb program, 1 kb sram, 512 byte internal eeprom)
+* Prolific PL2303 USB to serial interface
+* 12 MHz crystal oscillator (wired to the PL2303)
+* 2 tact switches
+* 6 LT574 8-bit flip-flops that drive the leds (physically in a 24x24 configuration)
+* Atmel serial eeprom (possibly 32 kb, but unused by this firmware)
+* ISP header right below the battery
+
+![Badge Variant Back](https://raw.githubusercontent.com/Effix/LedBadge/master/images/board_8a_back_sm.png)
+![Badge Variant Front](https://raw.githubusercontent.com/Effix/LedBadge/master/images/board_8a_front_sm.png)
 
 # Wiring
 

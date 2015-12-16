@@ -306,11 +306,12 @@ static inline void StartFade()
 // Modifies the overall display brightness
 static inline void SetBrightnessLevelRegisters(unsigned char level)
 {
-#if defined(__AVR_ATmega88PA__)
 	// the OE (output enable) signal is wired up to one of the pwm pins, so this has way more intensity levels than we can generate with the gray scale bit-planes
 	// since it is a separate pin, it overlays nicely, but dim values can end up looking a little flickery
+#if defined(__AVR_ATmega88PA__)
 	OCR0B = pgm_read_byte(&g_BrightnessTable[level]);
 #elif defined(__AVR_ATmega8A__)
+	// TODO
 #endif
 }
 
@@ -414,7 +415,7 @@ void ConfigureDisplay()
 	DDRD |= (1 << PORTD7) | (1 << PORTD6) | (1 << PORTD5);
 	PORTD &= ~((1 << PORTD7) | (1 << PORTD6) | (1 << PORTD5));
 	
-	// brightness pwm timer (initialize to disabled state)
+	// brightness pwm timer
 	TCCR0A |= (1 << WGM00) | (1 << WGM01) | (1 << COM0B0) | (1 << COM0B1);
 	TCCR0B |= (1 << CS00);
 	SetBrightnessLevelRegisters(0);
@@ -424,6 +425,7 @@ void ConfigureDisplay()
 	OCR2A = 344 / 8; // ~187hz @ 12mhz
 	TIMSK2 |= (1 << OCIE2A);
 #elif defined(__AVR_ATmega8A__)
+	// TODO
 #endif
 
 	// omitted fields are 0 initialized
@@ -624,6 +626,7 @@ inline void RefreshDisplay()
 	PORTD |= (1 << PORTD6); // storage register clock high
 	PORTD &= ~(1 << PORTD6); // storage register clock low
 #elif defined(__AVR_ATmega8A__)
+	// TODO
 #endif
 	
 	// now do state machine book-keeping

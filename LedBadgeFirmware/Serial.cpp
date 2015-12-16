@@ -13,11 +13,19 @@ volatile unsigned char g_SerialCount = 0;
 // Called once at program start
 void ConfigureUART()
 {
+#if defined(__AVR_ATmega88PA__)
 	UBRR0H = 0;
 	UBRR0L = 11; // 128800 baud
 	UCSR0A |= (1 << U2X0);
 	UCSR0B |= (1 << RXEN0) | (1 << TXEN0) | (1 << RXCIE0);
 	UCSR0C |= (1 << UCSZ00) | (1 << UCSZ01); // 8 bits, 1 stop bit, 
+#elif defined(__AVR_ATmega8A__)
+	UBRRH = 0;
+	UBRRL = 11; // 128800 baud
+	UCSRA |= (1 << U2X);
+	UCSRB |= (1 << RXEN) | (1 << TXEN) | (1 << RXCIE);
+	UCSRC |= (1 << UCSZ0) | (1 << UCSZ1); // 8 bits, 1 stop bit, 
+#endif
 }
 
 // Handles the resync protocol (write panic -> read 255 zeros -> write ok)
@@ -34,8 +42,13 @@ static void OverflowPanic()
 	for(;;)
 	{
 		// wait for a new byte
+#if defined(__AVR_ATmega88PA__)
 		while(!(UCSR0A & (1 << RXC0))) { }
 		if(UDR0 == 0)
+#elif defined(__AVR_ATmega8A__)
+		while(!(UCSRA & (1 << RXC))) { }
+		if(UDR == 0)
+#endif
 		{
 			// gradually reset the buffered data while we are getting all of these 0s
 			g_SerialBuffer[count] = 0;
@@ -88,8 +101,13 @@ unsigned char ReadSerialData()
 void WriteSerialData(unsigned char data)
 {
 	// Wait for the output buffer to free up
+#if defined(__AVR_ATmega88PA__)
 	while(!(UCSR0A & (1 << UDRE0))) { }
 	UDR0 = data;
+#elif defined(__AVR_ATmega8A__)
+	while(!(UCSRA & (1 << UDRE))) { }
+	UDR = data;
+#endif
 }
 
 // Gets the total number of bytes that can be read without blocking
@@ -105,9 +123,17 @@ unsigned char GetPendingSerialDataSize()
 
 // Interrupt handler for incoming IO
 // Shovels data into the circular read buffer
+#if defined(__AVR_ATmega88PA__)
 ISR(USART_RX_vect, ISR_BLOCK)
+#elif defined(__AVR_ATmega8A__)
+ISR(USART_RXC_vect, ISR_BLOCK)
+#endif
 {
+#if defined(__AVR_ATmega88PA__)
 	g_SerialBuffer[g_SerialWritePos++] = UDR0;
+#elif defined(__AVR_ATmega8A__)
+	g_SerialBuffer[g_SerialWritePos++] = UDR;
+#endif
 	++g_SerialCount;
 
 	// uh oh... we caught up to the beginning of the buffer and have overwritten something
