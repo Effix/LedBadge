@@ -53,7 +53,9 @@
     Cycles per Byte = Speed / (Baud / 10) => 937.5
     Queue Size = Est Longest Op / Cycles per Byte => 201.3445
     
-    UBBR(Baud) = Speed / (16 * Baud) - 1
-    UBBR(57600) => 12.0208
-    UBBR(128000) => 4.8594
-    1 - (4.8594 / round(4.8594)) in percent => 2.812%
+    UBBR(Baud) = Speed / (8 * Baud) - 1
+    UBBR(57600) => 25.0417
+    UBBR(128000) => 10.7188
+    Selected UBBR = UBBR(Baud) => 10.7188
+    Selected Rounded UBBR = round(Selected UBBR) => 11
+    1 - (Selected UBBR / Selected Rounded UBBR) in percent => 2.5568%
