@@ -410,9 +410,9 @@ void ConfigureDisplay()
 {
 #if defined(__AVR_ATmega88PA__)
 	// data and clock pins
-	DDRB |= (1 << PORTB1) | (1 << PORTB0);
+	DDRB |= (1 << DDB1) | (1 << DDB0);
 	PORTB &= ~((1 << PORTB1) | (1 << PORTB0));
-	DDRD |= (1 << PORTD7) | (1 << PORTD6) | (1 << PORTD5);
+	DDRD |= (1 << DDD7) | (1 << DDD6) | (1 << DDD5);
 	PORTD &= ~((1 << PORTD7) | (1 << PORTD6) | (1 << PORTD5));
 	
 	// brightness pwm timer
@@ -425,7 +425,23 @@ void ConfigureDisplay()
 	OCR2A = 344 / 8; // ~187hz @ 12mhz
 	TIMSK2 |= (1 << OCIE2A);
 #elif defined(__AVR_ATmega8A__)
+	// data and clock pins
+	DDRB |= (1 << DDB0) | (1 << DDB1) | (1 << DDB2) | (1 << DDB5) | (1 << DDB6) | (1 << DDB7);
+	PORTB &= ~((1 << PORTB0) | (1 << PORTB1) | (1 << PORTB2) | (1 << PORTB5) | (1 << PORTB6) | (1 << PORTB7));
+	DDRC |= (1 << DDC0) | (1 << DDC1) | (1 << DDC2) | (1 << DDC3);
+	PORTC &= ~((1 << PORTC0) | (1 << PORTC1) | (1 << PORTC2) | (1 << PORTC3));
+	DDRD |= (1 << DDD3) | (1 << DDD4) | (1 << DDD5) | (1 << DDD6) | (1 << DDD7);
+	PORTD &= ~((1 << PORTD3) | (1 << PORTD4) | (1 << PORTD5) | (1 << PORTD6) | (1 << PORTD7));
+	
 	// TODO
+	// brightness pwm timer
+	//TCCR0 |= (1 << CS00);
+	//SetBrightnessLevelRegisters(0);
+	
+	// refresh timer
+	TCCR2 |= (1 << CS21);
+	OCR2 = 344 / 8; // ~124hz @ 8mhz
+	TIMSK |= (1 << OCIE2);
 #endif
 
 	// omitted fields are 0 initialized
@@ -627,13 +643,59 @@ inline void RefreshDisplay()
 	PORTD &= ~(1 << PORTD6); // storage register clock low
 #elif defined(__AVR_ATmega8A__)
 	// TODO
+	
+	#define PORTNAME(PORT_LETTER) PORT##PORT_LETTER
+	#define PORTPINNAME(PORT_LETTER, PIN_NUMBER) PORT##PORT_LETTER##PIN_NUMBER
+	#define SETPIN(PORT_LETTER, PIN_NUMBER, EXPR) PORTNAME(PORT_LETTER) = (PORTNAME(PORT_LETTER) & ~(1 << PORTPINNAME(PORT_LETTER, PIN_NUMBER))) | (EXPR ? (1 << PORTPINNAME(PORT_LETTER, PIN_NUMBER)) : 0)
+	#define CLOCKPIN(PORT_LETTER, PIN_NUMBER) PORTNAME(PORT_LETTER) |= (1 << PORTPINNAME(PORT_LETTER, PIN_NUMBER)); PORTNAME(PORT_LETTER) &= ~(1 << PORTPINNAME(PORT_LETTER, PIN_NUMBER))
+	#define LATCH(BANK) switch(BANK) { \
+		case 0: CLOCKPIN(D, 4); break; \
+		case 1: CLOCKPIN(D, 3); break; \
+		case 2: CLOCKPIN(C, 2); break; \
+		case 3: CLOCKPIN(C, 3); break; \
+		case 4: CLOCKPIN(C, 1); break; \
+		case 5: CLOCKPIN(C, 0); break; }
+	#define DUMP(BANK, D0, D1, D2, D3, D4, D5, D6, D7) { \
+		SETPIN(B, 6, D0); \
+		SETPIN(B, 7, D1); \
+		SETPIN(D, 5, D2); \
+		SETPIN(D, 6, D3); \
+		SETPIN(B, 2, D4); \
+		SETPIN(B, 0, D5); \
+		SETPIN(D, 7, D6); \
+		SETPIN(B, 1, D7); \
+		LATCH(BANK); }
+	#define BIT(N) (data & (1 << (N)))
+	
+	// disable output
+	PORTB |= (1 << PORTB5);
+	
+	// data and row
+	DUMP(5, y != 4, y != 5, y != 6, y != 7, y != 8, y != 9, y != 10, y != 11);
+	char data = *--g_DisplayReg.BufferP;
+	DUMP(4, BIT(7), BIT(6), BIT(5), BIT(4), y != 0, y != 1, y != 2, y != 3);
+	data = *--g_DisplayReg.BufferP;
+	DUMP(3, BIT(7), BIT(6), BIT(5), BIT(4), BIT(3), BIT(2), BIT(1), BIT(0));
+	data = *--g_DisplayReg.BufferP;
+	DUMP(2, BIT(7), BIT(6), BIT(5), BIT(4), BIT(3), BIT(2), BIT(1), BIT(0));
+	data = *--g_DisplayReg.BufferP;
+	DUMP(1, BIT(7), BIT(6), BIT(5), BIT(4), BIT(3), BIT(2), BIT(1), BIT(0));
+	data = *--g_DisplayReg.BufferP;
+	DUMP(0, BIT(7), BIT(6), BIT(5), BIT(4), BIT(3), BIT(2), BIT(1), BIT(0));
+	
+	// enable output
+	PORTB &= ~(1 << PORTB5);
+	
 #endif
 	
 	// now do state machine book-keeping
+#if defined(__AVR_ATmega88PA__)
 	if(g_DisplayReg.Half-- == 0)
 	{
 		g_DisplayReg.Half = 1;
-		
+#elif defined(__AVR_ATmega8A__)
+	{
+#endif
 		if(g_DisplayReg.Y-- == 0)
 		{
 			g_DisplayReg.Y = BufferHeight - 1;

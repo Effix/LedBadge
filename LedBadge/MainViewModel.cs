@@ -243,7 +243,7 @@ namespace LedBadge
 
         void OnBadgeResponse(object sender, LedBadgeLib.BadgeResponseEventArgs args)
         {
-            Dispatcher.InvokeAsync(() => LogMessage(args.Code, args.Response));
+            Dispatcher.InvokeAsync(() => LogMessage(args.Code, args.Response), DispatcherPriority.ApplicationIdle);
         }
 
         void LogMessage(string message, params object[] args)

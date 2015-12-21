@@ -9,14 +9,18 @@
 
 enum
 {
+#if defined(__AVR_ATmega88PA__)
 	BufferWidth = 48,											// pixels across
+#elif defined(__AVR_ATmega8A__)
+	BufferWidth = 36,											// pixels across
+#endif
 	BufferHeight = 12,											// pixels tall
 	BufferPixels = BufferWidth * BufferHeight,					// total pixels
 	BufferBitPlanes = 3,										// unpacked bit-planes, 2 bits -> black + 3 gray levels
-	BufferBitPlaneStride = BufferWidth / 8,						// bit-planes are 1bbp
+	BufferBitPlaneStride = (BufferWidth + 7) / 8,				// bit-planes are 1bbp
 	BufferBitPlaneLength = BufferBitPlaneStride * BufferHeight,	// full bit-plane size
 	BufferLength = BufferBitPlaneLength * BufferBitPlanes,		// full unpacked frame buffer size
-	BufferPackedLength = BufferPixels / 4,						// full packed frame length (from a fill command)
+	BufferPackedLength = (BufferPixels + 3) / 4,				// full packed frame length (from a fill command)
 	BufferCount = 2,											// buffers in the swap chain (front/back)
 	
 	BrightnessLevels = 256										// brightness look up table size
@@ -50,6 +54,7 @@ struct DisplayState
 	bool IdleFadeEnable;										// true to invoke fading to the idle reset image
 	bool IdleResetToBootImage;									// true to reset to the startup image instead of just black
 	bool BufferSelect;											// index of the current front buffer
+	volatile unsigned char BrightnessTimerRegValue;				// timer value for the software pwm brightness control
 	unsigned char BrightnessLevel;								// current output brightness
 	unsigned char GammaTable[BufferBitPlanes];					// hold timings for the bit-planes
 	unsigned char *FrontBuffer;									// current front buffer
