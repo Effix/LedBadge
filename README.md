@@ -44,7 +44,7 @@ Another supported variant of the badge is slightly smaller, the two buttons on t
 * Prolific PL2303 USB to serial interface
 * 12 MHz crystal oscillator (wired to the PL2303)
 * 2 tact switches
-* 6 LT574 8-bit flip-flops that drive the leds (physically in a 24x24 configuration)
+* 6 LT574 8-bit flip-flops that drive the leds (physically in a 36x12 configuration)
 * Atmel serial eeprom (possibly 32 kb, but unused by this firmware)
 * ISP header right below the battery
 

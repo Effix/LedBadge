@@ -20,12 +20,12 @@
     Bytes per Frame Uncompressed = Pixels / Pixels per Byte Uncompressed in bytes => 216 bytes
     
     Measured Segment Cycles = 248 # measured
-    Refresh Interval = 334
-    Refresh Rate = Speed / Refresh Interval / Segments / Brightness Passes => 187.1257
+    Refresh Interval = 336
+    Refresh Rate = Speed / Refresh Interval / Segments / Brightness Passes => 186.0119
     
-    Cycles Left Over = Speed * ((Refresh Interval - Measured Segment Cycles) / Refresh Interval) => 3,089,820.3593
-    Cycles per Frame = Cycles Left Over / Target Frame Rate => 51,497.006
-    Cycle Ratio = Cycles Left Over / Speed => 0.2575
+    Cycles Left Over = Speed * ((Refresh Interval - Measured Segment Cycles) / Refresh Interval) => 3,142,857.1429
+    Cycles per Frame = Cycles Left Over / Target Frame Rate => 52,380.9524
+    Cycle Ratio = Cycles Left Over / Speed => 0.2619
     
     Measured SetPix Cycles = 48
     Measured GetPix Cycles = 45
@@ -37,9 +37,9 @@
     Est Cycles per Fill = Pixels * Measured SetPix Cycles => 27,648
     Est Cycles per Copy = Pixels * (Measured GetPix Cycles + Measured SetPix Cycles) => 53,568
     
-    Est Longest Op = Measured Copy Cycles / Cycle Ratio => 188,760.4884
-    Fills per Frame = Cycles per Frame / Measured Fill Cycles => 1.2807
-    Copies per Frame = Cycles per Frame / Measured Copy Cycles => 1.0595
+    Est Longest Op = Measured Copy Cycles / Cycle Ratio => 185,575.0909
+    Fills per Frame = Cycles per Frame / Measured Fill Cycles => 1.3027
+    Copies per Frame = Cycles per Frame / Measured Copy Cycles => 1.0777
    
 # Bandwidth
     
@@ -51,7 +51,7 @@
     
     Bytes per Frame = (Baud / 10) / Target Frame Rate => 213.3333
     Cycles per Byte = Speed / (Baud / 10) => 937.5
-    Queue Size = Est Longest Op / Cycles per Byte => 201.3445
+    Queue Size = Est Longest Op / Cycles per Byte => 197.9468
     
     UBBR(Baud) = Speed / (8 * Baud) - 1
     UBBR(57600) => 25.0417
