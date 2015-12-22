@@ -36,6 +36,7 @@ The hardware is identifiable by two buttons on the back (in a horazontal configu
 
 I was lucky and got a nice bodge wire hanging out there.
 
+##### Wiring:
 Pin | Name | Signal   | Component
 ----|------|----------|-----------
 1   | PD3  |          | 
@@ -86,6 +87,7 @@ Another supported variant of the badge is slightly smaller, the two buttons on t
 ![Badge Variant Back](https://raw.githubusercontent.com/Effix/LedBadge/master/images/board_8a_back_sm.png)
 ![Badge Variant Front](https://raw.githubusercontent.com/Effix/LedBadge/master/images/board_8a_front_sm.png)
 
+##### Wiring:
 Pin | Name | Signal          | Component
 ----|------|-----------------|-----------
 1   | PD3  | CP (1)          | LT574
