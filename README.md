@@ -36,6 +36,41 @@ The hardware is identifiable by two buttons on the back (in a horazontal configu
 
 I was lucky and got a nice bodge wire hanging out there.
 
+Pin | Name | Signal   | Component
+----|------|----------|-----------
+1   | PD3  |          | 
+2   | PD4  |          | 
+3   | GND  |          | 
+4   | VCC  |          | 
+5   | GND  |          | 
+6   | VCC  |          | 
+7   | PB6  | RES (A)  | Oscillator
+8   | PB7  | RES (B)  | Oscillator
+9   | PD5  | ~OE      | 74HC595
+10  | PD6  | STCP     | 74HC595
+11  | PD7  | DS (A)   | 74HC595
+12  | PB0  | SHCP     | 74HC595
+13  | PB1  | DS (B)   | 74HC595
+14  | PB2  |          | 
+15  | PB3  | MOSI     | ISP Header
+16  | PB4  | MISO     | ISP Header
+17  | PB5  | SCK      | ISP Header
+18  | AVCC |          | 
+19  | ADC6 |          | 
+20  | AREF |          | 
+21  | GND  |          | 
+22  | ADC7 |          | 
+23  | PC0  |          | 
+24  | PC1  |          | 
+25  | PC2  | Button 1 | 
+26  | PC3  | Button 0 | 
+27  | PC4  | SDA      | EEPROM
+28  | PC5  | SCL      | EEPROM
+29  | PC6  | RST      | ISP Header
+30  | PD0  | TXD      | USB Serial
+31  | PD1  | RXD      | USB Serial
+32  | PD2  |          | 
+
 ## Variant 2
 Another supported variant of the badge is slightly smaller, the two buttons on the back are in a vertical configuration. The leds are still 45 degrees, but appear to be bonded to the board directly rather than SMD components. It uses a similar (but older) Atmel microcontroller. This variant also uses an older PL2303 as well that requires an external oscillator. Instead of serial shift registers, it uses parallel flip-flops to drive the leds. Because the xtal pins are used up on parallel output (and the usb serial controler is using the crystal anyway), this variant runs at 8 MHz instead of 12 MHz.
 
@@ -51,9 +86,40 @@ Another supported variant of the badge is slightly smaller, the two buttons on t
 ![Badge Variant Back](https://raw.githubusercontent.com/Effix/LedBadge/master/images/board_8a_back_sm.png)
 ![Badge Variant Front](https://raw.githubusercontent.com/Effix/LedBadge/master/images/board_8a_front_sm.png)
 
-# Wiring
-
-...
+Pin | Name | Signal          | Component
+----|------|-----------------|-----------
+1   | PD3  | CP (1)          | LT574
+2   | PD4  | CP (0)          | LT574
+3   | GND  |                 | 
+4   | VCC  |                 | 
+5   | GND  |                 | 
+6   | VCC  |                 | 
+7   | PB6  | D0              | LT574
+8   | PB7  | D1              | LT574
+9   | PD5  | D2              | LT574
+10  | PD6  | D3              | LT574
+11  | PD7  | D6              | LT574
+12  | PB0  | D5              | LT574
+13  | PB1  | D7              | LT574
+14  | PB2  | D4              | LT574
+15  | PB3  | MOSI + Button 0 | ISP Header
+16  | PB4  | MISO            | ISP Header
+17  | PB5  | SCK + ~OE       | ISP Header + LT574
+18  | AVCC |                 | 
+19  | ADC6 |                 | 
+20  | AREF |                 | 
+21  | GND  |                 | 
+22  | ADC7 |                 | 
+23  | PC0  | CP (5)          | LT574
+24  | PC1  | CP (4)          | LT574
+25  | PC2  | CP (2)          | LT574
+26  | PC3  | CP (3)          | LT574
+27  | PC4  | SDA             | EEPROM
+28  | PC5  | SCL             | EEPROM
+29  | PC6  | RST             | ISP Header
+30  | PD0  | TXD             | USB Serial
+31  | PD1  | RXD             | USB Serial
+32  | PD2  | Button 1        | 
 
 # Installing
 
