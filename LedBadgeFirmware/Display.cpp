@@ -311,7 +311,7 @@ static inline void SetBrightnessLevelRegisters(unsigned char level)
 #if defined(__AVR_ATmega88PA__)
 	OCR0B = pgm_read_byte(&g_BrightnessTable[level]);
 #elif defined(__AVR_ATmega8A__)
-	// TODO
+	OCR1BL = pgm_read_byte(&g_BrightnessTable[level]);
 #endif
 }
 
@@ -422,7 +422,7 @@ void ConfigureDisplay()
 	
 	// refresh timer
 	TCCR2B |= (1 << CS21);
-	OCR2A = 344 / 8; // ~187hz @ 12mhz
+	OCR2A = 336 / 8; // ~186hz @ 12mhz
 	TIMSK2 |= (1 << OCIE2A);
 #elif defined(__AVR_ATmega8A__)
 	// data and clock pins
@@ -433,14 +433,18 @@ void ConfigureDisplay()
 	DDRD |= (1 << DDD3) | (1 << DDD4) | (1 << DDD5) | (1 << DDD6) | (1 << DDD7);
 	PORTD &= ~((1 << PORTD3) | (1 << PORTD4) | (1 << PORTD5) | (1 << PORTD6) | (1 << PORTD7));
 	
-	// TODO
+	// disable output
+	PORTB |= (1 << PORTB5);
+	
 	// brightness pwm timer
-	//TCCR0 |= (1 << CS00);
-	//SetBrightnessLevelRegisters(0);
+	OCR1AL = 0xFF;
+	SetBrightnessLevelRegisters(0);
+	TCCR1B |= (1 << CS11) | (1 << WGM12);
+	TIMSK |= (1 << OCIE1A) | (1 << OCIE1B);
 	
 	// refresh timer
+	OCR2 = 440 / 8; // ~188hz @ 8mhz
 	TCCR2 |= (1 << CS21);
-	OCR2 = 344 / 8; // ~124hz @ 8mhz
 	TIMSK |= (1 << OCIE2);
 #endif
 
@@ -479,13 +483,14 @@ void EnableDisplay(bool enable)
 inline void RefreshDisplay()
 {
 	unsigned char y = g_RowDitherTable[g_DisplayReg.Y];
-	unsigned char row = (y << 1) + g_DisplayReg.Half;
 	g_DisplayReg.BufferP = g_DisplayReg.FrontBuffer + 
 		(g_DisplayReg.BitPlane * BufferBitPlaneLength) + 
 		(y * BufferBitPlaneStride) + 
 		(g_DisplayReg.Half == 0 ? BufferBitPlaneStride / 2 : BufferBitPlaneStride);
 
 #if defined(__AVR_ATmega88PA__)
+
+	unsigned char row = (y << 1) + g_DisplayReg.Half;
 	unsigned char portB = PORTB & ~(1 << PORTB0); // shift register clock low
 	unsigned char portD_default = PORTD | (1 << PORTD7); // row select high
 	unsigned char portD_selectRow = PORTD & ~(1 << PORTD7); // row select low
@@ -641,51 +646,91 @@ inline void RefreshDisplay()
 	}
 	PORTD |= (1 << PORTD6); // storage register clock high
 	PORTD &= ~(1 << PORTD6); // storage register clock low
+
 #elif defined(__AVR_ATmega8A__)
-	// TODO
-	
-	#define PORTNAME(PORT_LETTER) PORT##PORT_LETTER
-	#define PORTPINNAME(PORT_LETTER, PIN_NUMBER) PORT##PORT_LETTER##PIN_NUMBER
-	#define SETPIN(PORT_LETTER, PIN_NUMBER, EXPR) PORTNAME(PORT_LETTER) = (PORTNAME(PORT_LETTER) & ~(1 << PORTPINNAME(PORT_LETTER, PIN_NUMBER))) | (EXPR ? (1 << PORTPINNAME(PORT_LETTER, PIN_NUMBER)) : 0)
-	#define CLOCKPIN(PORT_LETTER, PIN_NUMBER) PORTNAME(PORT_LETTER) |= (1 << PORTPINNAME(PORT_LETTER, PIN_NUMBER)); PORTNAME(PORT_LETTER) &= ~(1 << PORTPINNAME(PORT_LETTER, PIN_NUMBER))
-	#define LATCH(BANK) switch(BANK) { \
-		case 0: CLOCKPIN(D, 4); break; \
-		case 1: CLOCKPIN(D, 3); break; \
-		case 2: CLOCKPIN(C, 2); break; \
-		case 3: CLOCKPIN(C, 3); break; \
-		case 4: CLOCKPIN(C, 1); break; \
-		case 5: CLOCKPIN(C, 0); break; }
-	#define DUMP(BANK, D0, D1, D2, D3, D4, D5, D6, D7) { \
-		SETPIN(B, 6, D0); \
-		SETPIN(B, 7, D1); \
-		SETPIN(D, 5, D2); \
-		SETPIN(D, 6, D3); \
-		SETPIN(B, 2, D4); \
-		SETPIN(B, 0, D5); \
-		SETPIN(D, 7, D6); \
-		SETPIN(B, 1, D7); \
-		LATCH(BANK); }
-	#define BIT(N) (data & (1 << (N)))
 	
 	// disable output
 	PORTB |= (1 << PORTB5);
 	
-	// data and row
-	DUMP(5, y != 4, y != 5, y != 6, y != 7, y != 8, y != 9, y != 10, y != 11);
-	char data = *--g_DisplayReg.BufferP;
-	DUMP(4, BIT(7), BIT(6), BIT(5), BIT(4), y != 0, y != 1, y != 2, y != 3);
-	data = *--g_DisplayReg.BufferP;
-	DUMP(3, BIT(7), BIT(6), BIT(5), BIT(4), BIT(3), BIT(2), BIT(1), BIT(0));
-	data = *--g_DisplayReg.BufferP;
-	DUMP(2, BIT(7), BIT(6), BIT(5), BIT(4), BIT(3), BIT(2), BIT(1), BIT(0));
-	data = *--g_DisplayReg.BufferP;
-	DUMP(1, BIT(7), BIT(6), BIT(5), BIT(4), BIT(3), BIT(2), BIT(1), BIT(0));
-	data = *--g_DisplayReg.BufferP;
-	DUMP(0, BIT(7), BIT(6), BIT(5), BIT(4), BIT(3), BIT(2), BIT(1), BIT(0));
+	unsigned char portB = PORTB;
+	unsigned char portD = PORTD;
 	
-	// enable output
-	PORTB &= ~(1 << PORTB5);
-	
+	switch(y)
+	{
+		case  0:
+		{
+			#define SELECT_ROW 0
+			#include "ClockOutPixels.h"
+			break;
+		}
+		case  1:
+		{
+			#define SELECT_ROW 1
+			#include "ClockOutPixels.h"
+			break;
+		}
+		case  2:
+		{
+			#define SELECT_ROW 2
+			#include "ClockOutPixels.h"
+			break;
+		}
+		case  3:
+		{
+			#define SELECT_ROW 3
+			#include "ClockOutPixels.h"
+			break;
+		}
+		case  4:
+		{
+			#define SELECT_ROW 4
+			#include "ClockOutPixels.h"
+			break;
+		}
+		case  5:
+		{
+			#define SELECT_ROW 5
+			#include "ClockOutPixels.h"
+			break;
+		}
+		case  6:
+		{
+			#define SELECT_ROW 6
+			#include "ClockOutPixels.h"
+			break;
+		}
+		case  7:
+		{
+			#define SELECT_ROW 7
+			#include "ClockOutPixels.h"
+			break;
+		}
+		case  8:
+		{
+			#define SELECT_ROW 8
+			#include "ClockOutPixels.h"
+			break;
+		}
+		case  9:
+		{
+			#define SELECT_ROW 9
+			#include "ClockOutPixels.h"
+			break;
+		}
+		case 10:
+		{
+			#define SELECT_ROW 10
+			#include "ClockOutPixels.h"
+			break;
+		}
+		case 11:
+		{
+			#define SELECT_ROW 11
+			#include "ClockOutPixels.h"
+			break;
+		}
+	}
+		
 #endif
 	
 	// now do state machine book-keeping
@@ -720,19 +765,34 @@ inline void RefreshDisplay()
 	}
 }
 
-// Interrupt handler for timer to ensure that the display updates are regular and not delayed by any io or command processing
 #if defined(__AVR_ATmega88PA__)
+
+// Interrupt handler for timer to ensure that the display updates are regular and not delayed by any io or command processing
 ISR(TIMER2_COMPA_vect, ISR_BLOCK)
 {
 	RefreshDisplay();
-	TIFR2 |= OCF2A;
 	TCNT2 = 0;
 }
+
 #elif defined(__AVR_ATmega8A__)
+
+// Interrupt handler for timer to ensure that the display updates are regular and not delayed by any io or command processing
 ISR(TIMER2_COMP_vect, ISR_BLOCK)
 {
 	RefreshDisplay();
-	TIFR |= OCF2;
 	TCNT2 = 0;
 }
+
+// Interrupt handlers for software pwm brightness control
+ISR(TIMER1_COMPB_vect, ISR_BLOCK)
+{
+	// disable output
+	PORTB |= (1 << PORTB5);
+}
+ISR(TIMER1_COMPA_vect, ISR_BLOCK)
+{
+	// enable output
+	PORTB &= ~(1 << PORTB5);
+}
+
 #endif

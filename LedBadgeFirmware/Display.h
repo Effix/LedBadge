@@ -54,7 +54,6 @@ struct DisplayState
 	bool IdleFadeEnable;										// true to invoke fading to the idle reset image
 	bool IdleResetToBootImage;									// true to reset to the startup image instead of just black
 	bool BufferSelect;											// index of the current front buffer
-	volatile unsigned char BrightnessTimerRegValue;				// timer value for the software pwm brightness control
 	unsigned char BrightnessLevel;								// current output brightness
 	unsigned char GammaTable[BufferBitPlanes];					// hold timings for the bit-planes
 	unsigned char *FrontBuffer;									// current front buffer
