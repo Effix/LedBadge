@@ -16,7 +16,7 @@ namespace LedBadgeLib
             m_dispatcher = dispatcher;
 
             Port = port;
-            Baud = 128000;
+            Baud = 115200;
             Stream = new SerialPort(Port, Baud, Parity.None, 8, StopBits.One);
             Stream.DataReceived += DataReceived;
             Stream.Open();

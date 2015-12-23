@@ -15,16 +15,16 @@ void ConfigureUART()
 {
 #if defined(__AVR_ATmega88PA__)
 	UBRR0H = 0;
-	UBRR0L = 11; // 128000 baud ~ 2.5% error
-	UCSR0A |= (1 << U2X0);
-	UCSR0B |= (1 << RXEN0) | (1 << TXEN0) | (1 << RXCIE0);
-	UCSR0C |= (1 << UCSZ00) | (1 << UCSZ01); // 8 bits, 1 stop bit, 
+	UBRR0L = 12; // 115200 baud ~ -0.17% error
+	UCSR0A = (1 << U2X0);
+	UCSR0B = (1 << RXEN0) | (1 << TXEN0) | (1 << RXCIE0);
+	UCSR0C = (1 << UCSZ00) | (1 << UCSZ01); // 8 bits, 1 stop bit
 #elif defined(__AVR_ATmega8A__)
 	UBRRH = 0;
-	UBRRL = 7; // 128000 baud ~ 2.7% error
-	UCSRA |= (1 << U2X);
-	UCSRB |= (1 << RXEN) | (1 << TXEN) | (1 << RXCIE);
-	UCSRC |= (1 << URSEL) | (1 << UCSZ0) | (1 << UCSZ1); // 8 bits, 1 stop bit, 
+	UBRRL = 7; // 115200 baud ~ 3.99% error
+	UCSRA = (1 << U2X);
+	UCSRB = (1 << RXEN) | (1 << TXEN) | (1 << RXCIE);
+	UCSRC = (1 << URSEL) | (1 << UCSZ0) | (1 << UCSZ1); // 8 bits, 1 stop bit 
 #endif
 }
 

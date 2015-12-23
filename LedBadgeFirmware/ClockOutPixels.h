@@ -74,8 +74,8 @@
 {
 	const unsigned char *b = g_DisplayReg.BufferP;
 	
-	NextWord();					
-
+	NextWord();
+	
 	#if SELECT_ROW == 0
 		OutputPixAndRow(0);
 	#else
@@ -255,8 +255,158 @@
 	data = *--g_DisplayReg.BufferP;
 	DUMP(0, BIT(7), BIT(6), BIT(5), BIT(4), BIT(3), BIT(2), BIT(1), BIT(0));
 	*/
+	
+{
+	const unsigned char *b = g_DisplayReg.BufferP;
+	
+	asm volatile (
+		"ori	%[portBReg], 0b11000111"	"\n\t" // row select
+		"ori	%[portDReg], 0b11100000"	"\n\t"
+	#if SELECT_ROW == 11
+		"andi	%[portBReg], ~0b00000010"	"\n\t"
+	#elif SELECT_ROW == 10
+		"andi	%[portDReg], ~0b10000000"	"\n\t"
+	#elif SELECT_ROW == 9
+		"andi	%[portBReg], ~0b00000001"	"\n\t"
+	#elif SELECT_ROW == 8
+		"andi	%[portBReg], ~0b00000100"	"\n\t"
+	#elif SELECT_ROW == 7
+		"andi	%[portDReg], ~0b01000000"	"\n\t"
+	#elif SELECT_ROW == 6
+		"andi	%[portDReg], ~0b00100000"	"\n\t"
+	#elif SELECT_ROW == 5
+		"andi	%[portBReg], ~0b10000000"	"\n\t"
+	#elif SELECT_ROW == 4
+		"andi	%[portBReg], ~0b01000000"	"\n\t"
+	#endif
+		"out	%[portBAddr], %[portBReg]"	"\n\t"
+		"out	%[portDAddr], %[portDReg]"	"\n\t"
+		"sbi	%[portCAddr], 0"			"\n\t" // latch bank 5
+		"cbi	%[portCAddr], 0"			"\n\t"
+		
+		"ori	%[portBReg], 0b11000111"	"\n\t"
+		"ori	%[portDReg], 0b11100000"	"\n\t"
+		"ld		__tmp_reg__, -%a[buffer]"	"\n\t" // row select + data 4
+		"bst	__tmp_reg__, 7"				"\n\t"
+		"bld	%[portBReg], 6"				"\n\t"
+		"bst	__tmp_reg__, 6"				"\n\t"
+		"bld	%[portBReg], 7"				"\n\t"
+		"bst	__tmp_reg__, 5"				"\n\t"
+		"bld	%[portDReg], 5"				"\n\t"
+		"bst	__tmp_reg__, 4"				"\n\t"
+		"bld	%[portDReg], 6"				"\n\t"
+	#if SELECT_ROW == 3
+		"andi	%[portBReg], ~0b00000010"	"\n\t"
+	#elif SELECT_ROW == 2
+		"andi	%[portDReg], ~0b10000000"	"\n\t"
+	#elif SELECT_ROW == 1
+		"andi	%[portBReg], ~0b00000001"	"\n\t"
+	#elif SELECT_ROW == 0
+		"andi	%[portBReg], ~0b00000100"	"\n\t"
+	#endif
+		"out	%[portBAddr], %[portBReg]"	"\n\t"
+		"out	%[portDAddr], %[portDReg]"	"\n\t"
+		"sbi	%[portCAddr], 1"			"\n\t" // latch bank 4
+		"cbi	%[portCAddr], 1"			"\n\t"
+		
+		"ld		__tmp_reg__, -%a[buffer]"	"\n\t" // data 3
+		"bst	__tmp_reg__, 7"				"\n\t"
+		"bld	%[portBReg], 6"				"\n\t"
+		"bst	__tmp_reg__, 6"				"\n\t"
+		"bld	%[portBReg], 7"				"\n\t"
+		"bst	__tmp_reg__, 5"				"\n\t"
+		"bld	%[portDReg], 5"				"\n\t"
+		"bst	__tmp_reg__, 4"				"\n\t"
+		"bld	%[portDReg], 6"				"\n\t"
+		"bst	__tmp_reg__, 3"				"\n\t"
+		"bld	%[portBReg], 2"				"\n\t"
+		"bst	__tmp_reg__, 2"				"\n\t"
+		"bld	%[portBReg], 0"				"\n\t"
+		"bst	__tmp_reg__, 1"				"\n\t"
+		"bld	%[portDReg], 7"				"\n\t"
+		"bst	__tmp_reg__, 0"				"\n\t"
+		"bld	%[portBReg], 1"				"\n\t"
+		"out	%[portBAddr], %[portBReg]"	"\n\t"
+		"out	%[portDAddr], %[portDReg]"	"\n\t"
+		"sbi	%[portCAddr], 3"			"\n\t" // latch bank 3
+		"cbi	%[portCAddr], 3"			"\n\t"
+		
+		"ld		__tmp_reg__, -%a[buffer]"	"\n\t" // data 2
+		"bst	__tmp_reg__, 7"				"\n\t"
+		"bld	%[portBReg], 6"				"\n\t"
+		"bst	__tmp_reg__, 6"				"\n\t"
+		"bld	%[portBReg], 7"				"\n\t"
+		"bst	__tmp_reg__, 5"				"\n\t"
+		"bld	%[portDReg], 5"				"\n\t"
+		"bst	__tmp_reg__, 4"				"\n\t"
+		"bld	%[portDReg], 6"				"\n\t"
+		"bst	__tmp_reg__, 3"				"\n\t"
+		"bld	%[portBReg], 2"				"\n\t"
+		"bst	__tmp_reg__, 2"				"\n\t"
+		"bld	%[portBReg], 0"				"\n\t"
+		"bst	__tmp_reg__, 1"				"\n\t"
+		"bld	%[portDReg], 7"				"\n\t"
+		"bst	__tmp_reg__, 0"				"\n\t"
+		"bld	%[portBReg], 1"				"\n\t"
+		"out	%[portBAddr], %[portBReg]"	"\n\t"
+		"out	%[portDAddr], %[portDReg]"	"\n\t"
+		"sbi	%[portCAddr], 2"			"\n\t" // latch bank 2
+		"cbi	%[portCAddr], 2"			"\n\t"
+		
+		"ld		__tmp_reg__, -%a[buffer]"	"\n\t" // data 1
+		"bst	__tmp_reg__, 7"				"\n\t"
+		"bld	%[portBReg], 6"				"\n\t"
+		"bst	__tmp_reg__, 6"				"\n\t"
+		"bld	%[portBReg], 7"				"\n\t"
+		"bst	__tmp_reg__, 5"				"\n\t"
+		"bld	%[portDReg], 5"				"\n\t"
+		"bst	__tmp_reg__, 4"				"\n\t"
+		"bld	%[portDReg], 6"				"\n\t"
+		"bst	__tmp_reg__, 3"				"\n\t"
+		"bld	%[portBReg], 2"				"\n\t"
+		"bst	__tmp_reg__, 2"				"\n\t"
+		"bld	%[portBReg], 0"				"\n\t"
+		"bst	__tmp_reg__, 1"				"\n\t"
+		"bld	%[portDReg], 7"				"\n\t"
+		"bst	__tmp_reg__, 0"				"\n\t"
+		"bld	%[portBReg], 1"				"\n\t"
+		"out	%[portBAddr], %[portBReg]"	"\n\t"
+		"out	%[portDAddr], %[portDReg]"	"\n\t"
+		"sbi	%[portDAddr], 3"			"\n\t" // latch bank 1
+		"cbi	%[portDAddr], 3"			"\n\t"
+		
+		"ld		__tmp_reg__, -%a[buffer]"	"\n\t" // data 0
+		"bst	__tmp_reg__, 7"				"\n\t"
+		"bld	%[portBReg], 6"				"\n\t"
+		"bst	__tmp_reg__, 6"				"\n\t"
+		"bld	%[portBReg], 7"				"\n\t"
+		"bst	__tmp_reg__, 5"				"\n\t"
+		"bld	%[portDReg], 5"				"\n\t"
+		"bst	__tmp_reg__, 4"				"\n\t"
+		"bld	%[portDReg], 6"				"\n\t"
+		"bst	__tmp_reg__, 3"				"\n\t"
+		"bld	%[portBReg], 2"				"\n\t"
+		"bst	__tmp_reg__, 2"				"\n\t"
+		"bld	%[portBReg], 0"				"\n\t"
+		"bst	__tmp_reg__, 1"				"\n\t"
+		"bld	%[portDReg], 7"				"\n\t"
+		"bst	__tmp_reg__, 0"				"\n\t"
+		"bld	%[portBReg], 1"				"\n\t"
+		"out	%[portBAddr], %[portBReg]"	"\n\t"
+		"out	%[portDAddr], %[portDReg]"	"\n\t"
+		"sbi	%[portDAddr], 4"			"\n\t" // latch bank 0
+		"cbi	%[portDAddr], 4"			"\n\t"
+		:	[buffer] "+e" (b)
+		:	[portBAddr] "I" (_SFR_IO_ADDR(PORTB)),
+			[portCAddr] "I" (_SFR_IO_ADDR(PORTC)),
+			[portDAddr] "I" (_SFR_IO_ADDR(PORTD)),
+			[portBReg] "r" (portB),
+			[portDReg] "r" (portD)
+	);	
+	
+	//g_DisplayReg.BufferP = b;
+}
 
-// TODO
 #undef SELECT_ROW
 
 #endif

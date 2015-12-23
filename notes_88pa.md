@@ -47,15 +47,13 @@
     Command Bandwidth = Target Frame Rate * 6 in bytes => 360 bytes
     Bandwidth = Video Bandwidth + Command Bandwidth => 9,000 bytes
     Min Baud = Bandwidth * (10/8) / sec in baud => 90,000 baud
-    Baud = 128000
+    Baud = 115200
     
-    Bytes per Frame = (Baud / 10) / Target Frame Rate => 213.3333
-    Cycles per Byte = Speed / (Baud / 10) => 937.5
-    Queue Size = Est Longest Op / Cycles per Byte => 197.9468
+    Bytes per Frame = (Baud / 10) / Target Frame Rate => 192
+    Cycles per Byte = Speed / (Baud / 10) => 1,041.6667
+    Queue Size = Est Longest Op / Cycles per Byte => 178.1521
     
     UBBR(Baud) = Speed / (8 * Baud) - 1
-    UBBR(57600) => 25.0417
-    UBBR(128000) => 10.7188
-    Selected UBBR = UBBR(Baud) => 10.7188
-    Selected Rounded UBBR = round(Selected UBBR) => 11
-    1 - (Selected UBBR / Selected Rounded UBBR) in percent => 2.5568%
+    Selected UBBR = UBBR(Baud) => 12.0208
+    Selected Rounded UBBR = round(Selected UBBR) => 12
+    1 - (Selected UBBR / Selected Rounded UBBR) in percent => -0.1736%
