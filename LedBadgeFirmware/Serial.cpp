@@ -18,13 +18,14 @@ void ConfigureUART()
 	UBRR0L = 12; // 115200 baud ~ -0.17% error
 	UCSR0A = (1 << U2X0);
 	UCSR0B = (1 << RXEN0) | (1 << TXEN0) | (1 << RXCIE0);
-	UCSR0C = (1 << UCSZ00) | (1 << UCSZ01); // 8 bits, 1 stop bit
+	UCSR0C = (1 << UCSZ00) | (1 << UCSZ01); // 8 bits, 1 stop bits
 #elif defined(__AVR_ATmega8A__)
+	OSCCAL = 0xAD; // calibrate to 8mhz
 	UBRRH = 0;
-	UBRRL = 7; // 115200 baud ~ 3.99% error
+	UBRRL = 16; // 57600 baud ~ -2.1% error
 	UCSRA = (1 << U2X);
 	UCSRB = (1 << RXEN) | (1 << TXEN) | (1 << RXCIE);
-	UCSRC = (1 << URSEL) | (1 << UCSZ0) | (1 << UCSZ1); // 8 bits, 1 stop bit 
+	UCSRC = (1 << URSEL) | (1 << UCSZ0) | (1 << UCSZ1); // 8 bits, 1 stop bits 
 #endif
 }
 
