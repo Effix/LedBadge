@@ -34,7 +34,7 @@
         <documentation help="" />
         <offline-documentation help="" />
         <dependencies>
-          <content-extension eid="atmel.asf" uuidref="Atmel.ASF" version="3.21.0" />
+          <content-extension eid="atmel.asf" uuidref="Atmel.ASF" version="3.25.0" />
         </dependencies>
       </framework-data>
     </AsfFrameworkConfig>
@@ -154,6 +154,12 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="Eeprom.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="I2C.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="I2C.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="LedBadgeFirmware.cpp">
