@@ -44,6 +44,8 @@ struct DisplayState
 	unsigned char Half;											// current side of the output row (scan lines are split in half)
 	unsigned char BitPlane;										// currently displaying bit-plane index
 	unsigned char BitPlaneHold;									// remaining count on current bit-plane
+	unsigned char SoftwarePWMHold;								// remaining count for brightness control timing this cycle
+	unsigned char SoftwarePWMPeriod;							// the count per cycle for brightness control timing
 	const unsigned char *BufferP;								// points at the next 8 pixels to go out
 	volatile bool FrameChanged;									// true if frame just changed
 	volatile bool TimeoutAllowUpdate;							// true if timeout counter can change

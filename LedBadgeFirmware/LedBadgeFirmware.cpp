@@ -3,6 +3,8 @@
 #include "Display.h"
 #include "Buttons.h"
 #include "Serial.h"
+#include "I2C.h"
+#include "Eeprom.h"
 #include <util/delay_basic.h>
 
 // Power up init
@@ -12,12 +14,14 @@ void Setup()
 	ConfigureDisplay();
 	ConfigurePushButtons();
 	ConfigureUART();
+	ConfigureI2C();
+	ConfigureExternalEEPROM();
 	
 	sei();
 }
 
-// Helper for resyncing after an invalid command is processed
-// Similar to the buffer overflow resync, but this can be called from outside of an interrupt handler
+// Helper for re-syncing after an invalid command is processed
+// Similar to the buffer overflow re-sync, but this can be called from outside of an interrupt handler
 static void BadCommandPanic()
 {
 	// notify of panic state
@@ -27,7 +31,7 @@ static void BadCommandPanic()
 	for(;;)
 	{
 		// wait for a new byte
-		if(ReadSerialData() == 0)
+		if(ReadSerialData() == 0xFF)
 		{
 			// check for the full sequence of nops
 			if(++count == 0)

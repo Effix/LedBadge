@@ -9,10 +9,26 @@ volatile unsigned char g_SerialReadPos = 0;
 volatile unsigned char g_SerialWritePos = 0;
 volatile unsigned char g_SerialCount = 0;
 
+#if defined(__AVR_ATmega88PA__)
+	#define UR_CTRL_REG_A	UCSR0A
+	#define UR_RX_COMPLETE	RXC0
+	#define UR_DATA_BUFFER	UDR0
+	#define UR_DATA_EMPTY	UDRE0
+	#define UR_RX_vect		USART_RX_vect
+#elif defined(__AVR_ATmega8A__)
+	#define UR_CTRL_REG_A	UCSRA
+	#define UR_RX_COMPLETE	RXC
+	#define UR_DATA_BUFFER	UDR
+	#define UR_DATA_EMPTY	UDRE
+	#define UR_RX_vect		USART_RXC_vect
+#endif
+
 // Sets up serial IO
 // Called once at program start
 void ConfigureUART()
 {
+	//PRR &= ~(1 << PRUSART0);
+
 #if defined(__AVR_ATmega88PA__)
 	UBRR0H = 0;
 	UBRR0L = 12; // 115200 baud ~ -0.17% error
@@ -22,14 +38,14 @@ void ConfigureUART()
 #elif defined(__AVR_ATmega8A__)
 	OSCCAL = 0xAD; // calibrate to 8mhz
 	UBRRH = 0;
-	UBRRL = 16; // 57600 baud ~ -2.1% error
+	UBRRL = 25; // 38400 baud ~ -0.1667% error
 	UCSRA = (1 << U2X);
 	UCSRB = (1 << RXEN) | (1 << TXEN) | (1 << RXCIE);
 	UCSRC = (1 << URSEL) | (1 << UCSZ0) | (1 << UCSZ1); // 8 bits, 1 stop bits 
 #endif
 }
 
-// Handles the resync protocol (write panic -> read 255 zeros -> write ok)
+// Handles the re-sync protocol (write panic -> read 255 0xFF -> write ok)
 // Must be called with interrupts disabled (or within the UART interrupt handler)
 static void OverflowPanic()
 {
@@ -43,13 +59,8 @@ static void OverflowPanic()
 	for(;;)
 	{
 		// wait for a new byte
-#if defined(__AVR_ATmega88PA__)
-		while(!(UCSR0A & (1 << RXC0))) { }
-		if(UDR0 == 0)
-#elif defined(__AVR_ATmega8A__)
-		while(!(UCSRA & (1 << RXC))) { }
-		if(UDR == 0)
-#endif
+		while(!(UR_CTRL_REG_A & (1 << UR_RX_COMPLETE))) { }
+		if(UR_DATA_BUFFER == 0xFF)
 		{
 			// gradually reset the buffered data while we are getting all of these 0s
 			g_SerialBuffer[count] = 0;
@@ -102,13 +113,8 @@ unsigned char ReadSerialData()
 void WriteSerialData(unsigned char data)
 {
 	// Wait for the output buffer to free up
-#if defined(__AVR_ATmega88PA__)
-	while(!(UCSR0A & (1 << UDRE0))) { }
-	UDR0 = data;
-#elif defined(__AVR_ATmega8A__)
-	while(!(UCSRA & (1 << UDRE))) { }
-	UDR = data;
-#endif
+	while(!(UR_CTRL_REG_A & (1 << UR_DATA_EMPTY))) { }
+	UR_DATA_BUFFER = data;
 }
 
 // Gets the total number of bytes that can be read without blocking
@@ -124,18 +130,9 @@ unsigned char GetPendingSerialDataSize()
 
 // Interrupt handler for incoming IO
 // Shovels data into the circular read buffer
-#if defined(__AVR_ATmega88PA__)
-ISR(USART_RX_vect, ISR_BLOCK)
-#elif defined(__AVR_ATmega8A__)
-ISR(USART_RXC_vect, ISR_BLOCK)
-#endif
+ISR(UR_RX_vect, ISR_BLOCK)
 {
-	g_SerialBuffer[g_SerialWritePos++] = 
-#if defined(__AVR_ATmega88PA__)
-		UDR0;
-#elif defined(__AVR_ATmega8A__)
-		UDR;
-#endif
+	g_SerialBuffer[g_SerialWritePos++] = UR_DATA_BUFFER;
 	++g_SerialCount;
 
 	// uh oh... we caught up to the beginning of the buffer and have overwritten something
