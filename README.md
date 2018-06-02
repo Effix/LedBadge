@@ -17,8 +17,10 @@ I am interested in using this as a small notification display attached to a comp
 # The Hardware
 This particular badge is pretty generic and is easy to find under a few different brandings. Different variation in the components and layout exist and a couple are supported by this project.
 
-## Variant 1
+## B1248 Variant
 The hardware is identifiable by two buttons on the back (in a horazontal configuration), a mini usb port that is used for data as well as power, and the 48x12 array of SMD leds are packed at a 45 degree angle on the front. I have seen a seller on one popular online retailer even include pictures of the board inside as part of the listing.
+
+Note: I have run across another variant of this 48x12 screen that is totally different inside. I have no idea if it is compatible with this firmware.
 
 ##### Notable components:
 * 48x12 array of leds
@@ -27,7 +29,7 @@ The hardware is identifiable by two buttons on the back (in a horazontal configu
 * 12 MHz crystal oscillator (wired to the ATMega88PA)
 * 2 tact switches
 * 6 74hc595 8-bit shift registers that drive the leds (physically in a 24x24 configuration)
-* Atmel serial eeprom (possibly 32 kb, but unused by this firmware)
+* 16kb AT24C128C Atmel serial eeprom
 * ISP header right below the microcontroller
 
 * ~186 Hz display update rate with this firmware
@@ -74,7 +76,7 @@ Pin | Name | Signal   | Component
 31  | PD1  | RXD      | USB Serial
 32  | PD2  |          | 
 
-## Variant 2
+## B1236 Variant
 Another supported variant of the badge is slightly smaller (36x12 pixels), the two buttons on the back are in a vertical configuration. The leds are still 45 degrees, but appear to be bonded to the board directly rather than SMD components. It uses a similar (but older) Atmel microcontroller. This variant also uses an older PL2303 as well that requires an external oscillator. Instead of serial shift registers, it uses parallel flip-flops to drive the leds. Because the xtal pins are used up on parallel output (and the usb serial controler is using the crystal anyway), this variant runs at 8 MHz instead of 12 MHz.
 
 ##### Notable components:
@@ -84,7 +86,7 @@ Another supported variant of the badge is slightly smaller (36x12 pixels), the t
 * 12 MHz crystal oscillator (wired to the PL2303)
 * 2 tact switches
 * 6 LT574 8-bit flip-flops that drive the leds (physically in a 36x12 configuration)
-* Atmel serial eeprom (possibly 32 kb, but unused by this firmware)
+* 16kb AT24C128C Atmel serial eeprom
 * ISP header right below the battery
 
 * ~188 Hz display update rate with this firmware
