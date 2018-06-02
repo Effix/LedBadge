@@ -7,6 +7,9 @@
 #include <avr/cpufunc.h>
 #include <avr/pgmspace.h>
 
+// a packed block of 8 2bpp pixels broken up into 2 bit planes
+typedef unsigned int Pix2x8;
+
 enum
 {
 #if defined(__AVR_ATmega88PA__)
@@ -24,6 +27,15 @@ enum
 	BufferCount = 2,											// buffers in the swap chain (front/back)
 	
 	BrightnessLevels = 256										// brightness look up table size
+};
+
+struct PixelFormat
+{
+	enum Enum
+	{
+		OneBit,
+		TwoBits
+	};
 };
 
 struct FadingAction
@@ -65,21 +77,26 @@ struct DisplayState
 extern DisplayState g_DisplayReg;
 extern const unsigned char g_RowDitherTable[BufferHeight];
 
-// Sets a pixel value in a buffer
+// Sets a block of 8 pixel values in a buffer
+// The x parameter is in blocks, not pixels
 // Clips to the bounds of the buffer
-inline void SetPix(unsigned char x, unsigned char y, unsigned char val, unsigned char *buffer = g_DisplayReg.BackBuffer);
+inline void SetPixBlock(unsigned char x, unsigned char y, Pix2x8 val, unsigned char *buffer = g_DisplayReg.BackBuffer);
 
-// Reads a pixel value from a buffer
+// Reads a block of 8 pixel values from a buffer
+// The x parameter is in blocks, not pixels
 // Clips to the buffer bounds (returns 0 for out or bounds reads)
-inline unsigned char GetPix(unsigned char x, unsigned char y, unsigned char *buffer = g_DisplayReg.BackBuffer);
+inline Pix2x8 GetPixBlock(unsigned char x, unsigned char y, unsigned char *buffer = g_DisplayReg.BackBuffer);
 
 // Set a block of pixels in a buffer to a particular value
-void SolidFill(unsigned char x, unsigned char y, unsigned char width, unsigned char height, unsigned char color, unsigned char *buffer = g_DisplayReg.BackBuffer);
+// The x and width parameters are in blocks, not pixels
+void SolidFill(unsigned char x, unsigned char y, unsigned char width, unsigned char height, Pix2x8 val, unsigned char *buffer = g_DisplayReg.BackBuffer);
 
-// Set a block of pixels in a buffer to the given data (read from the serial port, 2bpp packed format)
-void Fill(unsigned char x, unsigned char y, unsigned char width, unsigned char height, unsigned char *buffer = g_DisplayReg.BackBuffer);
+// Set a block of pixels in a buffer to the given data (read from the serial port)
+// The x and width parameters are in blocks, not pixels
+void Fill(unsigned char x, unsigned char y, unsigned char width, unsigned char height, PixelFormat::Enum format, unsigned char *buffer = g_DisplayReg.BackBuffer);
 
 // Copy a block of pixels in a buffer to somewhere else
+// The x and width parameters are in blocks, not pixels
 void Copy(unsigned char srcX, unsigned char srcY, unsigned char dstX, unsigned char dstY, unsigned char width, unsigned char height, unsigned char *srcBuffer, unsigned char *dstBuffer);
 
 // Return a block of pixels from a buffer (sending it out to the serial port, 2bpp packed)
@@ -123,215 +140,56 @@ void EnableDisplay(bool enable);
 // Inline implementations
 //
 
-extern "C" unsigned char c_PixMasks[8];
+inline void SetPixBlockUnsafe(unsigned char *buffer, Pix2x8 val) __attribute__ ((always_inline));
+inline Pix2x8 GetPixBlockUnsafe(unsigned char *buffer) __attribute__ ((always_inline));
 
-inline void SetPixUnsafe(unsigned char x, unsigned char y, unsigned char val, unsigned char *buffer) __attribute__ ((always_inline));
-inline unsigned char GetPixUnsafe(unsigned char x, unsigned char y, unsigned char *buffer) __attribute__ ((always_inline));
-
-// Sets a pixel value in a buffer
-inline void SetPixUnsafe(unsigned char x, unsigned char y, unsigned char val, unsigned char *buffer)
+// Sets a block of 8 pixel values in a buffer
+inline void SetPixBlockUnsafe(unsigned char *buffer, Pix2x8 val)
 {
-	/*
-	// figure out the packed bit position and mask for the bit-plane
-	const unsigned char xBitPos = 7 - (x & 7);
-	const unsigned char xPos = x >> 3;
-	const unsigned char bit = 1 << xBitPos;
-	const unsigned char mask = ~bit;
-		
-	unsigned char *p = &buffer[y * BufferBitPlaneStride + xPos];
+	const unsigned char low = val & 0xFF;
+	const unsigned char high = (val >> 8) & 0xFF;
 
-	// expand the 0-3 pixel value into the 3 bit-planes
-	*p = (*p & mask) | (val > 0 ? bit : 0);
-	p += BufferBitPlaneLength;
-	*p = (*p & mask) | (val > 1 ? bit : 0);
-	p += BufferBitPlaneLength;
-	*p = (*p & mask) | (val > 2 ? bit : 0);
-	*/
-	
-	asm volatile
-	(
-		"ldi     r23, %[stride]"				"\n\t"  // build y offset
-		"mul     %[y], r23"						"\n\t"  // 
-		"add     %[buffer], r0"					"\n\t"  // add y offset to the buffer pointer
-		
-		"ldi     r27, 0"						"\n\t"  // initialize the pointer to the mask bit with the 
-		"mov     r26, %[x]"						"\n\t"  //   bottom 3 bits of the x location as the offset
-		"andi    r26, 7"						"\n\t"  // 
-		"subi    r26, lo8(-(c_PixMasks))"		"\n\t"  // add the start of the mask list to the offset
-		"sbci    r27, hi8(-(c_PixMasks))"		"\n\t"  // 
-		"ld      r23, x"						"\n\t"  // load mask bit
-		
-		"lsr     %[x]"							"\n\t"  // build x offset
-		"lsr     %[x]"							"\n\t"  //
-		"lsr     %[x]"							"\n\t"  // 
-		"add     %[buffer], %[x]"				"\n\t"  // add y offset to the buffer pointer
-
-		"cpi     %[val], 3"						"\n\t"  // jump to fill pattern
-		"breq    .L_VAL_3_%="					"\n\t"  // 
-		"cpi     %[val], 2"						"\n\t"  // 
-		"breq    .L_VAL_2_%="					"\n\t"  // 
-		"cpi     %[val], 1"						"\n\t"  // 
-		"breq    .L_VAL_1_%="					"\n\t"  // 
-
-		".L_VAL_0_%=:"							"\n\t"  // pattern for val == 0
-		"com     r23"							"\n\t"  // invert bit into a mask
-		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // clear plane bit
-		"and     __tmp_reg__, r23"				"\n\t"  // 
-		"st      %a[buffer], __tmp_reg__"		"\n\t"  // 
-		"subi    %[buffer], -%[length]"			"\n\t"  // offset to next bit plane
-		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // clear plane bit
-		"and     __tmp_reg__, r23"				"\n\t"  // 
-		"st      %a[buffer], __tmp_reg__"		"\n\t"  // 
-		"subi    %[buffer], -%[length]"			"\n\t"  // offset to next bit plane
-		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // clear plane bit
-		"and     __tmp_reg__, r23"				"\n\t"  // 
-		"st      %a[buffer], __tmp_reg__"		"\n\t"  // 
-		"rjmp    .L_END_%="						"\n\t"  // end function
-		
-		".L_VAL_1_%=:"							"\n\t"  // pattern for val == 1
-		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // set plane bit
-		"or      __tmp_reg__, r23"				"\n\t"  // 
-		"st      %a[buffer], __tmp_reg__"		"\n\t"  // 
-		"subi    %[buffer], -%[length]"			"\n\t"  // offset to next bit plane
-		"com     r23"							"\n\t"  // invert bit into a mask
-		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // clear plane bit
-		"and     __tmp_reg__, r23"				"\n\t"  // 
-		"st      %a[buffer], __tmp_reg__"		"\n\t"  // 
-		"subi    %[buffer], -%[length]"			"\n\t"  // offset to next bit plane
-		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // clear plane bit
-		"and     __tmp_reg__, r23"				"\n\t"  // 
-		"st      %a[buffer], __tmp_reg__"		"\n\t"  // 
-		"rjmp    .L_END_%="						"\n\t"  // end function
-		
-		".L_VAL_2_%=:"							"\n\t"  // pattern for val == 2
-		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // set plane bit
-		"or      __tmp_reg__, r23"				"\n\t"  // 
-		"st      %a[buffer], __tmp_reg__"		"\n\t"  // 
-		"subi    %[buffer], -%[length]"			"\n\t"  // offset to next bit plane
-		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // set plane bit
-		"or      __tmp_reg__, r23"				"\n\t"  // 
-		"st      %a[buffer], __tmp_reg__"		"\n\t"  // 
-		"subi    %[buffer], -%[length]"			"\n\t"  // offset to next bit plane
-		"com     r23"							"\n\t"  // invert bit into a mask
-		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // clear plane bit
-		"and     __tmp_reg__, r23"				"\n\t"  // 
-		"st      %a[buffer], __tmp_reg__"		"\n\t"  // 
-		"rjmp    .L_END_%="						"\n\t"  // end function
-		
-		".L_VAL_3_%=:"							"\n\t"  // pattern for val == 3
-		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // set plane bit
-		"or      __tmp_reg__, r23"				"\n\t"  // 
-		"st      %a[buffer], __tmp_reg__"		"\n\t"  // 
-		"subi    %[buffer], -%[length]"			"\n\t"  // offset to next bit plane
-		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // set plane bit
-		"or      __tmp_reg__, r23"				"\n\t"  // 
-		"st      %a[buffer], __tmp_reg__"		"\n\t"  // 
-		"subi    %[buffer], -%[length]"			"\n\t"  // offset to next bit plane
-		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // set plane bit
-		"or      __tmp_reg__, r23"				"\n\t"  // 
-		"st      %a[buffer], __tmp_reg__"		"\n\t"  // 
-		
-		".L_END_%=:"							"\n\t"
-		
-		:   [x] "+r" (x),
-			[buffer] "+e" (buffer)
-		:	[y] "r" (y),
-			[val] "r" (val),
-			[stride] "M" (BufferBitPlaneStride),
-			[length] "M" (BufferBitPlaneLength)
-		:	"r23", "r26", "r27"
-	);
+	*buffer = low | high;
+	buffer += BufferBitPlaneLength;
+	*buffer = high;
+	buffer += BufferBitPlaneLength;
+	*buffer = low & high;
 }
 
-// Sets a pixel value in a buffer
+// Sets a block of 8 pixel values in a buffer
+// The x parameter is in blocks, not pixels
 // Clips to the bounds of the buffer
-inline void SetPix(unsigned char x, unsigned char y, unsigned char val, unsigned char *buffer)
+inline void SetPixBlock(unsigned char x, unsigned char y, Pix2x8 val, unsigned char *buffer)
 {
-	if(x < BufferWidth && y < BufferHeight)
+	if(x < BufferBitPlaneStride && y < BufferHeight)
 	{
-		SetPixUnsafe(x, y, val, buffer);
+		SetPixBlockUnsafe(buffer + y * BufferBitPlaneStride + x, val);
 	}
 }
 
-// Reads a pixel value from a buffer
-inline unsigned char GetPixUnsafe(unsigned char x, unsigned char y, unsigned char *buffer)
+// Reads a block of 8 pixel values from a buffer
+inline Pix2x8 GetPixBlockUnsafe(unsigned char *buffer)
 {
-	/*
-	// figure out the packed bit position and mask for the bit-plane
-	const unsigned char xBitPos = 7 - (x & 7);
-	const unsigned char xPos = x >> 3;
-	const unsigned char mask = (1 << xBitPos);
-	
-	unsigned char *p = &buffer[y * BufferBitPlaneStride + xPos];
+	const unsigned char b0 = *buffer;
+	buffer += BufferBitPlaneLength;
+	const unsigned char b1 = *buffer;
+	buffer += BufferBitPlaneLength;
+	const unsigned char b2 = *buffer;
 
-	// un-expand the bit-planes by checking the most significant plane
-	if(*(p + 2 * BufferBitPlaneLength) & mask)
-		return 3;
-	if(*(p + 1 * BufferBitPlaneLength) & mask)
-		return 2;
-	if(*p & mask)
-		return 1;
-	return 0;
-	*/
-	
-	unsigned char result = 0;
-	asm volatile
-	(
-		"ldi     r23, %[stride]"				"\n\t"  // build y offset
-		"mul     %[y], r23"						"\n\t"  // 
-		"add     %[buffer], r0"					"\n\t"  // add y offset to the buffer pointer
-		
-		"ldi     r27, 0"						"\n\t"  // initialize the pointer to the mask bit with the 
-		"mov     r26, %[x]"						"\n\t"  //   bottom 3 bits of the x location as the offset
-		"andi    r26, 7"						"\n\t"  // 
-		"subi    r26, lo8(-(c_PixMasks))"		"\n\t"  // add the start of the mask list to the offset
-		"sbci    r27, hi8(-(c_PixMasks))"		"\n\t"  // 
-		"ld      r23, x"						"\n\t"  // load mask bit
-		
-		"lsr     %[x]"							"\n\t"  // build x offset
-		"lsr     %[x]"							"\n\t"  //
-		"lsr     %[x]"							"\n\t"  // 
-		"add     %[buffer], %[x]"				"\n\t"  // add y offset to the buffer pointer
-		
-		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // 
-		"and     __tmp_reg__, r23"				"\n\t"  // 
-		"breq    .L_P2_%="						"\n\t"  // check bit plane value
-		"inc     %[result]"						"\n\t"  // 
-		
-		".L_P2_%=:"								"\n\t"  // 
-		"subi    %[buffer], -%[length]"			"\n\t"  // offset to next bit plane
-		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // 
-		"and     __tmp_reg__, r23"				"\n\t"  // 
-		"breq    .L_P3_%="						"\n\t"  // check bit plane value
-		"inc     %[result]"						"\n\t"  // 
-		
-		".L_P3_%=:"								"\n\t"  // 
-		"subi    %[buffer], -%[length]"			"\n\t"  // offset to next bit plane
-		"ld	     __tmp_reg__, %a[buffer]"		"\n\t"  // 
-		"and     __tmp_reg__, r23"				"\n\t"  // 
-		"breq    .L_END_%="						"\n\t"  // check bit plane value
-		"inc     %[result]"						"\n\t"  // 
-		
-		".L_END_%=:"							"\n\t"  // 
-		
-		:   [x] "+r" (x),
-			[buffer] "+e" (buffer),
-			[result] "+r" (result)
-		:	[y] "r" (y),
-			[stride] "M" (BufferBitPlaneStride),
-			[length] "M" (BufferBitPlaneLength)
-		:	"r23", "r26", "r27"
-	);
-	return result;
+	const unsigned char high = b1;
+	const unsigned char low = (b0 ^ b1) | b2;
+
+	return (high << 8) | low;
 }
 
-// Reads a pixel value from a buffer
+// Reads a block of 8 pixel values from a buffer
+// The x parameter is in blocks, not pixels
 // Clips to the buffer bounds (returns 0 for out or bounds reads)
-inline unsigned char GetPix(unsigned char x, unsigned char y, unsigned char *buffer)
+inline Pix2x8 GetPixBlock(unsigned char x, unsigned char y, unsigned char *buffer)
 {
-	if(x < BufferWidth && y < BufferHeight)
+	if(x < BufferBitPlaneStride && y < BufferHeight)
 	{
-		return GetPixUnsafe(x, y, buffer);
+		return GetPixBlockUnsafe(buffer);
 	}
 	else
 	{

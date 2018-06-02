@@ -3,6 +3,10 @@
 #include "Eeprom.h"
 #include <util/atomic.h>
 
+template<bool pred> struct CT_Assert { typedef char arr[pred ? 0 : -1]; };
+CT_Assert<sizeof(unsigned char) == 1> AssertSizeOfChar;
+CT_Assert<sizeof(Pix2x8) == 2> AssertSizeOfPix2x8;
+
 // Segment order from upper left to lower right
 // This isn't used directly, it is inlined in the jumptable below
 /*const unsigned char g_RowSwizzleTable[BufferHeight * 2] = 
@@ -78,21 +82,6 @@ const unsigned char g_BrightnessTable[BrightnessLevels] PROGMEM =
 #endif
 };
 
-extern "C" 
-{
-	unsigned char c_PixMasks[8] =
-	{
-		1 << 7,
-		1 << 6,
-		1 << 5,
-		1 << 4,
-		1 << 3,
-		1 << 2,
-		1 << 1,
-		1 << 0
-	};
-}
-
 static unsigned char g_Buffer0[BufferLength] __attribute__ ((section (".buffer0")));
 static unsigned char g_Buffer1[BufferLength] __attribute__ ((section (".buffer1")));
 
@@ -123,56 +112,64 @@ template<unsigned char Extent> inline void Clamp(unsigned char &pos, unsigned ch
 }
 
 // Set a block of pixels in a buffer to a particular value
-void SolidFill(unsigned char x, unsigned char y, unsigned char width, unsigned char height, unsigned char color, unsigned char *buffer)
+// The x and width parameters are in blocks, not pixels
+void SolidFill(unsigned char x, unsigned char y, unsigned char width, unsigned char height, Pix2x8 val, unsigned char *buffer)
 {
-	Clamp<BufferWidth>(x, width);
+	Clamp<BufferBitPlaneStride>(x, width);
 	Clamp<BufferHeight>(y, height);
 	
-	for(unsigned char iy = y, sy = y + height; iy < sy; ++iy)
+	unsigned char *b0 = buffer + y * BufferBitPlaneStride + x;
+	for(unsigned char iy = height; iy; --iy, b0 += BufferBitPlaneStride)
 	{
-		for(unsigned char ix = x, sx = x + width; ix < sx; ++ix)
+		buffer = b0;
+		for(unsigned char ix = width; ix; --ix, ++buffer)
 		{
-			SetPixUnsafe(ix, iy, color, buffer);
+			SetPixBlockUnsafe(buffer, val);
 		}
 	}
 }
 
 // Set a block of pixels in a buffer to the given data (read from the serial port)
-void Fill(unsigned char x, unsigned char y, unsigned char width, unsigned char height, unsigned char *buffer)
+// The x and width parameters are in blocks, not pixels
+void Fill(unsigned char x, unsigned char y, unsigned char width, unsigned char height, PixelFormat::Enum format, unsigned char *buffer)
 {
-	unsigned char data = 0;
-	unsigned char rem = 0;
-	
 	for(unsigned char iy = y, sy = y + height; iy < sy; ++iy)
 	{
 		for(unsigned char ix = x, sx = x + width; ix < sx; ++ix)
 		{
-			if(!rem)
+			Pix2x8 data = ReadSerialData();
+			if(format == PixelFormat::OneBit)
 			{
-				data = ReadSerialData();
-				rem = 4;
+				data = (data << 8) | data;
+			}
+			else
+			{
+				data = (data << 8) | ReadSerialData();
 			}
 			
-			SetPix(ix, iy, data & 0x3, buffer);
-			data >>= 2;
-			--rem;
+			SetPixBlock(ix, iy, data, buffer);
 		}
 	}
 }
 
 // Copy a block of pixels in a buffer to somewhere else
+// The x and width parameters are in blocks, not pixels
 void Copy(unsigned char srcX, unsigned char srcY, unsigned char dstX, unsigned char dstY, unsigned char width, unsigned char height, unsigned char *srcBuffer, unsigned char *dstBuffer)
 {
-	Clamp<BufferWidth>(srcX, width);
+	Clamp<BufferBitPlaneStride>(srcX, width);
 	Clamp<BufferHeight>(srcY, height);
-	Clamp<BufferWidth>(dstX, width);
+	Clamp<BufferBitPlaneStride>(dstX, width);
 	Clamp<BufferHeight>(dstY, height);
-
-	for(unsigned char sy = srcY, dy = dstY, ey = srcY + height; sy < ey; ++sy, ++dy)
+	
+	unsigned char *bs = srcBuffer + srcY * BufferBitPlaneStride + srcX;
+	unsigned char *bd = dstBuffer + dstY * BufferBitPlaneStride + dstX;
+	for(unsigned char iy = height; iy; --iy, bs += BufferBitPlaneStride, bd += BufferBitPlaneStride)
 	{
-		for(unsigned char sx = srcX, dx = dstX, ex = srcX + width; sx < ex; ++sx, ++dx)
+		srcBuffer = bs;
+		dstBuffer = bd;
+		for(unsigned char ix = width; ix; --ix, ++srcBuffer, ++dstBuffer)
 		{
-			SetPixUnsafe(dx, dy, GetPixUnsafe(sx, sy, srcBuffer), dstBuffer);
+			SetPixBlockUnsafe(dstBuffer, GetPixBlockUnsafe(srcBuffer));
 		}
 	}
 }
@@ -180,29 +177,14 @@ void Copy(unsigned char srcX, unsigned char srcY, unsigned char dstX, unsigned c
 // Return a block of pixels from a buffer (sending it out to the serial port, 2bpp packed)
 void ReadRect(unsigned char x, unsigned char  y, unsigned char width, unsigned char height, unsigned char *buffer)
 {
-	unsigned char data = 0;
-	unsigned char read = 0;
-	
 	for(unsigned char iy = y, sy = y + height; iy < sy; ++iy)
 	{
 		for(unsigned char ix = x, sx = x + width; ix < sx; ++ix)
 		{
-			unsigned char val = GetPix(ix, iy, buffer);
-			data |= val << (read << 1);
-			read++;
-			
-			if(read == 4)
-			{
-				WriteSerialData(data);
-				data = 0;
-				read = 0;
-			}
+			Pix2x8 val = GetPixBlock(ix, iy, buffer);
+			WriteSerialData((val >> 8) & 0xFF);
+			WriteSerialData(val & 0xFF);
 		}
-	}
-	
-	if(read)
-	{
-		WriteSerialData(data);
 	}
 }
 

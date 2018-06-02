@@ -6,6 +6,7 @@
 #include "I2C.h"
 #include "Eeprom.h"
 #include <util/delay_basic.h>
+#include <util/atomic.h>
 
 // Power up init
 void Setup()
@@ -101,25 +102,6 @@ int main(void)
 				SetBrightness(ReadSerialData());
 				break;
 			}
-			case CommandCodes::SetPix:
-			{
-				// set a single pixel in a buffer
-				unsigned char x = ReadSerialData();
-				unsigned char y_target_color = ReadSerialData();
-				SetPix(x, (y_target_color >> 4) & 0xF, y_target_color & 0x3, 
-					((y_target_color >> 2) & 0x3) == Target::BackBuffer ? g_DisplayReg.BackBuffer : g_DisplayReg.FrontBuffer);
-				break;
-			}
-			case CommandCodes::GetPix:
-			{
-				// return a single pixel in a buffer
-				unsigned char x = ReadSerialData();
-				unsigned char y_target = ReadSerialData();
-				unsigned char val = GetPix(x, (y_target >> 4) & 0xF, 
-					((y_target >> 2) & 0x3) == Target::BackBuffer ? g_DisplayReg.BackBuffer : g_DisplayReg.FrontBuffer);
-				WriteSerialData((ResponseCodes::Pix << 4) | val);
-				break;
-			}
 			case CommandCodes::GetPixRect:
 			{
 				// return a block of pixels from a buffer
@@ -159,7 +141,8 @@ int main(void)
 				unsigned char width = ReadSerialData();
 				unsigned char y_height = ReadSerialData();
 				unsigned char target = (command_other >> 2) & 0x3;
-				Fill(x, (y_height >> 4) & 0xF, width, y_height & 0xF, 
+				PixelFormat::Enum format = static_cast<PixelFormat::Enum>((command_other >> 1) & 0x1);
+				Fill(x, (y_height >> 4) & 0xF, width, y_height & 0xF, format, 
 					target == Target::BackBuffer ? g_DisplayReg.BackBuffer : g_DisplayReg.FrontBuffer);
 				break;
 			}
