@@ -206,26 +206,6 @@ void CopyWholeBuffer(unsigned char *srcBuffer, unsigned char *dstBuffer)
 	}
 }
 
-// Set the image to show at startup (saves the front buffer to non-volatile memory)
-void SetPowerOnImage()
-{
-	unsigned char *p = g_DisplayReg.FrontBuffer;
-	for(unsigned char i = 0; i < BufferLength; ++i, ++p)
-	{
-		WriteInternalEEPROM(i, *p);
-	}
-}
-
-// Fills the font buffer directly from the on chip non-volatile memory
-void LoadPowerOnImage()
-{
-	unsigned char *p = g_DisplayReg.FrontBuffer;
-	for(unsigned char i = 0; i < BufferLength; ++i, ++p)
-	{
-		*p = ReadInternalEEPROM(i);
-	}
-}
-
 // Flips the front and back buffers (latches over at the end of the frame)
 void SwapBuffers()
 {
@@ -332,7 +312,7 @@ static inline void PumpTimeout()
 			{
 				if(g_DisplayReg.IdleResetToBootImage)
 				{
-					LoadPowerOnImage();
+					// LoadPowerOnImage(); TODO: Anim Refactor
 				}
 				else
 				{
@@ -376,7 +356,7 @@ static inline void PumpFade()
 			{
 				if(g_DisplayReg.IdleResetToBootImage)
 				{
-					LoadPowerOnImage();
+					// LoadPowerOnImage(); TODO: Anim Refactor
 				}
 				else
 				{
@@ -447,8 +427,6 @@ void ConfigureDisplay()
 	g_DisplayReg.BufferP = g_DisplayReg.FrontBuffer + BufferLength;
 	g_DisplayReg.TimeoutTrigger = 255;
 	g_DisplayReg.FadeState = FadingAction::In;
-	
-	LoadPowerOnImage();
 }
 
 // Helper for blanking out the display during long operations while interrupts are disabled

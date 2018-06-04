@@ -11,6 +11,7 @@
     Frame Height = 12
     Pixels = Frame Width * Frame Height => 576
     Pixel Blocks = floor((Frame Width + 7) / 8) * Frame Height => 72
+    Padded Pixels = Pixel Blocks * 8 => 576
     
     Bits per Pixel Compressed = 2 bits
     Bits per Pixel Uncompressed = 3 bits
@@ -29,15 +30,15 @@
     Cycles per Pixel = Cycles per Frame / Pixels => 90.9392
     Cycle Ratio = Cycles Left Over / Speed => 0.2619
     
-    Measured SetPix Cycles = 38
-    Measured GetPix Cycles = 34
+    Measured SetPixBlock Cycles = 38
+    Measured GetPixBlock Cycles = 34
     Measured ClearBuffer Cycles = 1088
     Measured SolidFill Cycles = 2148
     Measured Fill Cycles = 7062
     Measured Copy Cycles = 2641
     
-    Est Cycles per Fill = Pixel Blocks * Measured SetPix Cycles => 2,736
-    Est Cycles per Copy = Pixel Blocks * (Measured GetPix Cycles + Measured SetPix Cycles) => 5,184
+    Est Cycles per Fill = Pixel Blocks * Measured SetPixBlock Cycles => 2,736
+    Est Cycles per Copy = Pixel Blocks * (Measured GetPixBlock Cycles + Measured SetPixBlock Cycles) => 5,184
     
     Est Longest Op = Measured Fill Cycles / Cycle Ratio => 26,964
     Fills per Frame = Cycles per Frame / Measured Fill Cycles => 7.4173

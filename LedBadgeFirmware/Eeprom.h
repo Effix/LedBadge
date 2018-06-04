@@ -1,6 +1,12 @@
 #ifndef EEPROM_H_
 #define EEPROM_H_
 
+enum
+{
+	EepromInternalSize = 0x0200,
+	EepromExternalSize = 0x4000
+};
+
 // Writes a byte to the on chip persistent memory
 void WriteInternalEEPROM(unsigned int addr, unsigned char data);
 

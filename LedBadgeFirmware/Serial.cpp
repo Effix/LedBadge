@@ -53,7 +53,7 @@ static void OverflowPanic()
 	EnableDisplay(false);
 	
 	// notify of panic state
-	WriteSerialData(ResponseCodes::ReceiveOverflow << 4);
+	WriteSerialData((ResponseCodes::Error << 4) | ErrorCodes::ReceiveBufferOverrun);
 	
 	unsigned char count = 0;
 	for(;;)

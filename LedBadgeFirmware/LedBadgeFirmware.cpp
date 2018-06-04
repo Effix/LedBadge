@@ -17,39 +17,9 @@ void Setup()
 	ConfigureUART();
 	ConfigureI2C();
 	ConfigureExternalEEPROM();
+	InitAnim();
 	
 	sei();
-}
-
-// Helper for re-syncing after an invalid command is processed
-// Similar to the buffer overflow re-sync, but this can be called from outside of an interrupt handler
-static void BadCommandPanic()
-{
-	// notify of panic state
-	WriteSerialData(ResponseCodes::BadCommand << 4);
-	
-	unsigned char count = 0;
-	for(;;)
-	{
-		// wait for a new byte
-		if(ReadSerialData() == 0xFF)
-		{
-			// check for the full sequence of nops
-			if(++count == 0)
-			{
-				// finished!
-				break;
-			}
-		}
-		else
-		{
-			// probably still in the middle of frame data... start over
-			count = 0;
-		}
-	}
-	
-	// ok, all resynchronized
-	WriteSerialData(ResponseCodes::Ack << 4);
 }
 
 int main(void)
@@ -58,23 +28,19 @@ int main(void)
 	
 	for(;;)
     {
-		// many command parameters in this loop have multiple values packed per-byte
-		// these are noted by the underscores in the local vales (and the subsequent shifting and masking)
-		
-		unsigned char command_other = ReadSerialData();
-		switch((command_other >> 4) & 0xF)
+		if(GetPendingSerialDataSize())
 		{
-			case CommandCodes::Nop:
-			{
-				// do nothing at all
-				break;
-			}
-			case CommandCodes::Ping:
-			{
-				// respond with the given cookie
-				WriteSerialData((ResponseCodes::Ack << 4) | (command_other & 0xF));
-				break;
-			}
+			DispatchSerialCommand();
+			ResetIdleTime();
+		}
+		else if(g_AnimReg.Playing)
+		{
+			DispatchAnimCommand();
+		}
+	}
+
+
+		/*
 			case CommandCodes::Version:
 			{
 				// respond with the version of this firmware
@@ -196,14 +162,5 @@ int main(void)
 				WriteSerialData(GetPendingSerialDataSize());
 				break;
 			}
-			default:
-			{
-				// bad command - probably missed a byte. resync
-				BadCommandPanic();
-				break;
-			}
-		}
-		
-		ResetIdleTime();
-    }
+		*/
 }

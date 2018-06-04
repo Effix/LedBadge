@@ -10,6 +10,25 @@
 // a packed block of 8 2bpp pixels broken up into 2 bit planes
 typedef unsigned int Pix2x8;
 
+struct PixelFormat
+{
+	enum Enum
+	{
+		OneBit,
+		TwoBits,
+	};
+};
+
+struct FadingAction
+{
+	enum Enum
+	{
+		None,
+		In,
+		Out
+	};
+};
+
 enum
 {
 #if defined(__AVR_ATmega88PA__)
@@ -27,25 +46,6 @@ enum
 	BufferCount = 2,											// buffers in the swap chain (front/back)
 	
 	BrightnessLevels = 256										// brightness look up table size
-};
-
-struct PixelFormat
-{
-	enum Enum
-	{
-		OneBit,
-		TwoBits
-	};
-};
-
-struct FadingAction
-{
-	enum Enum
-	{
-		None,
-		In,
-		Out
-	};
 };
 
 struct DisplayState
@@ -107,9 +107,6 @@ void ClearBuffer(unsigned char *buffer = g_DisplayReg.BackBuffer);
 
 // Fast copy of a buffer
 void CopyWholeBuffer(unsigned char *srcBuffer, unsigned char *dstBuffer);
-
-// Set the image to show at startup (saves the front buffer to non-volatile memory)
-void SetPowerOnImage();
 
 // Flips the front and back buffers (latches over at the end of the frame)
 void SwapBuffers();

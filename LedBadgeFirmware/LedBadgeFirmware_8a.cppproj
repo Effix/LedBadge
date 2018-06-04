@@ -141,6 +141,9 @@
     <Compile Include="ClockOutPixels.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="Commands.cpp">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="Commands.h">
       <SubType>compile</SubType>
     </Compile>
