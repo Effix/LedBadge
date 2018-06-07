@@ -29,6 +29,8 @@ struct FadingAction
 	};
 };
 
+typedef unsigned char (*FetchByte)(bool moreBytes);
+
 enum
 {
 #if defined(__AVR_ATmega88PA__)
@@ -63,7 +65,7 @@ struct DisplayState
 	volatile bool TimeoutAllowUpdate;							// true if timeout counter can change
 	unsigned char TimeoutTrigger;								// idle frame count threshold
 	unsigned char TimeoutCounter;								// idle frames so far...
-	unsigned char FadeState;									// current action for the fade state machine
+	FadingAction::Enum FadeState;								// current action for the fade state machine
 	unsigned char FadeCounter;									// counter for the fade state machine
 	bool IdleFadeEnable;										// true to invoke fading to the idle reset image
 	bool IdleResetToBootImage;									// true to reset to the startup image instead of just black
@@ -93,7 +95,7 @@ void SolidFill(unsigned char x, unsigned char y, unsigned char width, unsigned c
 
 // Set a block of pixels in a buffer to the given data (read from the serial port)
 // The x and width parameters are in blocks, not pixels
-void Fill(unsigned char x, unsigned char y, unsigned char width, unsigned char height, PixelFormat::Enum format, unsigned char *buffer = g_DisplayReg.BackBuffer);
+void Fill(unsigned char x, unsigned char y, unsigned char width, unsigned char height, PixelFormat::Enum format, FetchByte fetch, unsigned char *buffer = g_DisplayReg.BackBuffer);
 
 // Copy a block of pixels in a buffer to somewhere else
 // The x and width parameters are in blocks, not pixels
@@ -114,17 +116,26 @@ void SwapBuffers();
 // Sets the overall image brightness (latches over at the end of the frame)
 void SetBrightness(unsigned char brightness);
 
+// Gets the overall image brightness (it may not be latched over yet)
+unsigned char GetBrightness();
+
 // Set the hold values for the gray scale bit-planes
 // Values are differential and the brightnesses are effectively a, a+b, and a+b+c 
 // So, in order to get a 1, 5, 9 spread, you would pass in a=1, b=4, c=4
 void SetHoldTimings(unsigned char a, unsigned char b, unsigned char c);
 
+void GetHoldTimings(unsigned char *a, unsigned char *b, unsigned char *c);
+
 // Sets the timeout parameters and behavior
 // A timeout of 255 disables idle timeouts
 void SetIdleTimeout(unsigned char fade, unsigned char resetToBootImage, unsigned char timeout);
 
+void GetIdleTimeout(unsigned char *fade, unsigned char *resetToBootImage, unsigned char *timeout);
+
 // Heartbeat to reset the idle timeout counter
 void ResetIdleTime();
+
+void GetFadeState(unsigned char *counter, FadingAction::Enum *action);
 
 // Sets up the ports bound to the led drivers configures the output state, and fills the front buffer with the startup image
 // Called once at program start

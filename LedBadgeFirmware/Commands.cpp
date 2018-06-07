@@ -2,74 +2,200 @@
 
 #include "Serial.h"
 #include "Eeprom.h"
+#include "Display.h"
+#include "Buttons.h"
 
-// Animation state machine values
-AnimState g_AnimReg = {};
+// Command/Animation state machine values
+CommandState g_CommandReg = {};
 
-typedef unsigned char (*FetchByte)(bool moreBytes);
-typedef void (*CommandHandler)(unsigned char header, FetchByte fetch);
+typedef bool (*CommandHandler)(unsigned char header, FetchByte fetch);
 
-void PingCommandHandler(unsigned char header, FetchByte fetch)
+bool PingCommandHandler(unsigned char header, FetchByte fetch)
 {
 	unsigned char cookie = fetch(false);
-	if(cookie)
+	g_CommandReg.LastCookie = cookie;
+	if(header & 0x08)
 	{
 		WriteSerialData(ResponseCodes::Ack << 4);
 		WriteSerialData(cookie);
 	}
+	return true;
 }
 
-void QuerySettingCommandHandler(unsigned char header, FetchByte fetch)
+bool QuerySettingCommandHandler(unsigned char header, FetchByte fetch)
+{
+	unsigned char setting = header & 0xF;
+	if(setting >= Settings::Count)
+	{
+		return false;
+	}
+	
+	WriteSerialData((ResponseCodes::Setting << 4) | setting);
+	switch(setting)
+	{
+		case Settings::Brightness:
+		{
+			WriteSerialData(GetBrightness());
+			break;
+		}
+		case Settings::HoldTimings:
+		{
+			unsigned char a, b, c;
+			GetHoldTimings(&a, &b, &c);
+			WriteSerialData(((a & 0xF) << 4) | (b & 0xF));
+			WriteSerialData(((c & 0xF) << 4));
+			break;
+		}
+		case Settings::IdleTimeout:
+		{
+			unsigned char timeout, fade, resetToBootImage;
+			GetIdleTimeout(&fade, &resetToBootImage, &timeout);
+			WriteSerialData(timeout);
+			WriteSerialData(((fade & 0x1) << 7) | ((resetToBootImage & 0x1) << 6));
+			break;
+		}
+		case Settings::FadeValue:
+		{
+			unsigned char counter;
+			FadingAction::Enum action;
+			GetFadeState(&counter, &action);
+			WriteSerialData(counter);
+			WriteSerialData((action & 0x3) << 6);
+			break;
+		}
+		case Settings::AnimBookmarkPos:
+		{
+			WriteSerialData(g_CommandReg.AnimBookmark & 0xFF);
+			WriteSerialData((g_CommandReg.AnimBookmark >> 8) & 0xFF);
+			break;
+		}
+		case Settings::AnimPlayState:
+		{
+			WriteSerialData(g_CommandReg.AnimPlaying & 0xFF);
+			WriteSerialData((((g_CommandReg.AnimPlaying >> 8) & 0x3F) << 2) | (g_CommandReg.AnimPlaying & 0x3));
+			break;
+		}
+		case Settings::ButtonState:
+		{
+			WriteSerialData((CheckButton1() << 1) | CheckButton0());
+			break;
+		}
+		case Settings::BufferFullness:
+		{
+			WriteSerialData(GetPendingSerialDataSize());
+			break;
+		}
+		case Settings::Caps:
+		{
+			WriteSerialData(VERSION);
+			WriteSerialData(BufferWidth);
+			WriteSerialData((BufferHeight << 4) | 2 /* bit depth */);
+			WriteSerialData(
+			#if defined(__AVR_ATmega88PA__)
+				SupportedFeatures::HardwareBrightness
+			#else
+				0
+			#endif
+			);
+			break;
+		}
+		break;
+	}
+	return fetch(false) == 0; // discard dummy byte
+}
+
+bool UpdateSettingCommandHandler(unsigned char header, FetchByte fetch)
 {
 
 }
 
-void UpdateSettingCommandHandler(unsigned char header, FetchByte fetch)
+bool SwapCommandHandler(unsigned char header, FetchByte fetch)
+{
+	SwapBuffers();
+	return fetch(false) == 0; // TODO: get hold time
+}
+
+bool ReadRectCommandHandler(unsigned char header, FetchByte fetch)
+{
+	unsigned char x = fetch(true);
+	unsigned char width = fetch(true);
+	unsigned char y_height = fetch(false);
+	unsigned char target = (header >> 2) & 0x3;
+	WriteSerialData((ResponseCodes::Pixels << 4) | (y_height & 0xF));
+	WriteSerialData(width);
+	ReadRect(x, (y_height >> 4) & 0xF, width, y_height & 0xF, target == BufferTarget::BackBuffer ? g_DisplayReg.BackBuffer : g_DisplayReg.FrontBuffer);
+	return true;
+}
+
+bool WriteRectCommandHandler(unsigned char header, FetchByte fetch)
+{
+	unsigned char x = fetch(true);
+	unsigned char width = fetch(true);
+	unsigned char y_height = fetch(true);
+	unsigned char target = (header >> 2) & 0x3;
+	PixelFormat::Enum format = static_cast<PixelFormat::Enum>((header >> 1) & 0x1);
+	Fill(x, (y_height >> 4) & 0xF, width, y_height & 0xF, format, fetch,
+		target == BufferTarget::BackBuffer ? g_DisplayReg.BackBuffer : g_DisplayReg.FrontBuffer);
+	return true;
+}
+
+bool CopyRectCommandHandler(unsigned char header, FetchByte fetch)
+{
+	unsigned char srcX = fetch(true);
+	unsigned char dstX = fetch(true);
+	unsigned char srcY_dstY = fetch(true);
+	unsigned char width = fetch(true);
+	unsigned char height_srcTarget_dstTarget = fetch(false);
+
+	unsigned char *srcBuffer = ((height_srcTarget_dstTarget >> 2) & 0x3) == BufferTarget::BackBuffer ? g_DisplayReg.BackBuffer : g_DisplayReg.FrontBuffer;
+	unsigned char *dstBuffer = (height_srcTarget_dstTarget & 0x3) == BufferTarget::BackBuffer ? g_DisplayReg.BackBuffer : g_DisplayReg.FrontBuffer;
+	if(srcX == 0 && dstX == 0 && srcY_dstY == 0 && width == BufferBitPlaneStride && ((height_srcTarget_dstTarget >> 4) & 0xF) == BufferHeight)
+	{
+		CopyWholeBuffer(srcBuffer, dstBuffer);
+	}
+	else
+	{
+		Copy(srcX, (srcY_dstY >> 4) & 0xF, dstX, srcY_dstY & 0xF, width, (height_srcTarget_dstTarget >> 4) & 0xF, srcBuffer, dstBuffer);
+	}
+	return true;
+}
+
+bool FillRectCommandHandler(unsigned char header, FetchByte fetch)
+{
+	unsigned char x = fetch(true);
+	unsigned char width = fetch(true);
+	unsigned char y_height = fetch(false);
+	unsigned char target = (header >> 2) & 0x3;
+	unsigned char color = header & 0x3;
+
+	unsigned char *buffer = (target == BufferTarget::BackBuffer) ? g_DisplayReg.BackBuffer : g_DisplayReg.FrontBuffer;
+	if(color == 0 && x == 0 && width == BufferBitPlaneStride && y_height == BufferHeight)
+	{
+		ClearBuffer(buffer);
+	}
+	else
+	{
+		SolidFill(x, (y_height >> 4) & 0xF, width, y_height & 0xF, color, buffer);
+	}
+	return true;
+}
+
+bool ReadMemoryCommandHandler(unsigned char header, FetchByte fetch)
 {
 
 }
 
-void SwapCommandHandler(unsigned char header, FetchByte fetch)
+bool WriteMemoryCommandHandler(unsigned char header, FetchByte fetch)
 {
 
 }
 
-void ReadRectCommandHandler(unsigned char header, FetchByte fetch)
+bool AnimControlCommandHandler(unsigned char header, FetchByte fetch)
 {
 
 }
 
-void WriteRectCommandHandler(unsigned char header, FetchByte fetch)
-{
-
-}
-
-void CopyRectCommandHandler(unsigned char header, FetchByte fetch)
-{
-
-}
-
-void FillRectCommandHandler(unsigned char header, FetchByte fetch)
-{
-
-}
-
-void ReadMemoryCommandHandler(unsigned char header, FetchByte fetch)
-{
-
-}
-
-void WriteMemoryCommandHandler(unsigned char header, FetchByte fetch)
-{
-
-}
-
-void AnimControlCommandHandler(unsigned char header, FetchByte fetch)
-{
-
-}
-
-void FadeCommandHandler(unsigned char header, FetchByte fetch)
+bool FadeCommandHandler(unsigned char header, FetchByte fetch)
 {
 
 }
@@ -81,14 +207,14 @@ unsigned char FetchSerial(bool moreBytes)
 
 unsigned char FetchInternalEEPROM(bool moreBytes)
 {
-	int readAddr = g_AnimReg.ReadPosition;
-	g_AnimReg.ReadPosition = ((g_AnimReg.ReadPosition + 1) & (EepromInternalSize - 1)) | RomTarget::TypeInternal;
+	int readAddr = g_CommandReg.AnimReadPosition;
+	g_CommandReg.AnimReadPosition = ((g_CommandReg.AnimReadPosition + 1) & (EepromInternalSize - 1)) | RomTarget::TypeInternal;
 	return ReadInternalEEPROM(readAddr);
 }
 
 unsigned char FetchExternalEEPROM(bool moreBytes)
 {
-	g_AnimReg.ReadPosition = ((g_AnimReg.ReadPosition + 1) & (EepromExternalSize - 1)) | RomTarget::TypeExternal;
+	g_CommandReg.AnimReadPosition = ((g_CommandReg.AnimReadPosition + 1) & (EepromExternalSize - 1)) | RomTarget::TypeExternal;
 	return ReadNextByteFromExternalEEPROM(moreBytes);
 }
 
@@ -128,7 +254,7 @@ static void BadAnimPanic()
 	// notify of panic state
 	WriteSerialData((ResponseCodes::Error << 4) | ErrorCodes::BadAnimCommand);
 
-	g_AnimReg.Playing = false;
+	g_CommandReg.AnimPlaying = false;
 }
 
 static const CommandHandler s_SerialHandlers[SerialCommands::Count] = 
@@ -152,11 +278,7 @@ void DispatchSerialCommand()
 	unsigned char commandHeader = ReadSerialData();
 	unsigned char command = (commandHeader >> 4) & 0xF;
 	
-	if(command < SerialCommands::Count)
-	{
-		s_SerialHandlers[command](commandHeader, FetchSerial);
-	}
-	else
+	if((command >= SerialCommands::Count) || !s_SerialHandlers[command](commandHeader, FetchSerial))
 	{
 		BadCommandPanic();
 	}
@@ -176,19 +298,15 @@ static const CommandHandler s_AnimHandlers[AnimCommands::Count] =
 
 void DispatchAnimCommand()
 {
-	bool external = (g_AnimReg.ReadPosition & RomTarget::TypeMask) != RomTarget::TypeInternal;
+	bool external = (g_CommandReg.AnimReadPosition & RomTarget::TypeMask) != RomTarget::TypeInternal;
 
 	if(external)
 	{
-		BeginReadExternalEEPROM(g_AnimReg.ReadPosition);
+		BeginReadExternalEEPROM(g_CommandReg.AnimReadPosition);
 		unsigned char commandHeader = FetchExternalEEPROM(true);
 		unsigned char command = (commandHeader >> 4) & 0xF;
 		
-		if(command < SerialCommands::Count)
-		{
-			s_SerialHandlers[command](commandHeader, FetchExternalEEPROM);
-		}
-		else
+		if((command >= SerialCommands::Count) || !s_SerialHandlers[command](commandHeader, FetchExternalEEPROM))
 		{
 			ReadNextByteFromExternalEEPROM(false); // discard junk byte and close connection, but don't call FetchExternalEEPROM/update the read pointer
 			BadAnimPanic();
@@ -199,11 +317,7 @@ void DispatchAnimCommand()
 		unsigned char commandHeader = FetchInternalEEPROM(false);
 		unsigned char command = (commandHeader >> 4) & 0xF;
 		
-		if(command < SerialCommands::Count)
-		{
-			s_SerialHandlers[command](commandHeader, FetchInternalEEPROM);
-		}
-		else
+		if((command >= SerialCommands::Count) || !s_SerialHandlers[command](commandHeader, FetchInternalEEPROM))
 		{
 			BadAnimPanic();
 		}

@@ -53,7 +53,6 @@ struct Settings
 		FadeValue,			// 
 		AnimBookmarkPos,	// 
 		AnimPlayState,		// 
-		AnimFrame,			// 
 		ButtonState,		// 
 		BufferFullness,		// 
 		Caps,				// 
@@ -73,6 +72,14 @@ struct ResponseCodes
 		Error,				// 
 		
 		Count
+	};
+};
+
+struct SupportedFeatures
+{
+	enum Enum
+	{
+		HardwareBrightness = 0x01,	// Supports fine grained PWM brightness
 	};
 };
 
@@ -123,14 +130,16 @@ struct RomTarget
 	};
 };
 
-struct AnimState
+struct CommandState
 {
-	unsigned int ReadPosition;		// 
-	unsigned int FramesToHold;		//
-	bool Playing;					// 
+	unsigned int AnimReadPosition;		// 
+	unsigned int AnimBookmark;			// 
+	unsigned int AnimFramesToHold;		//
+	bool AnimPlaying;					// 
+	unsigned char LastCookie;			//
 };
 
-extern AnimState g_AnimReg;
+extern CommandState g_CommandReg;
 
 void InitAnim();
 

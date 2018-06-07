@@ -131,20 +131,23 @@ void SolidFill(unsigned char x, unsigned char y, unsigned char width, unsigned c
 
 // Set a block of pixels in a buffer to the given data (read from the serial port)
 // The x and width parameters are in blocks, not pixels
-void Fill(unsigned char x, unsigned char y, unsigned char width, unsigned char height, PixelFormat::Enum format, unsigned char *buffer)
+void Fill(unsigned char x, unsigned char y, unsigned char width, unsigned char height, PixelFormat::Enum format, FetchByte fetch, unsigned char *buffer)
 {
+	unsigned int count = width * height;
 	for(unsigned char iy = y, sy = y + height; iy < sy; ++iy)
 	{
 		for(unsigned char ix = x, sx = x + width; ix < sx; ++ix)
 		{
-			Pix2x8 data = ReadSerialData();
+			Pix2x8 data;
 			if(format == PixelFormat::OneBit)
 			{
+				data = fetch(--count > 0);
 				data = (data << 8) | data;
 			}
 			else
 			{
-				data = (data << 8) | ReadSerialData();
+				data = fetch(true);
+				data = (data << 8) | fetch(--count > 0);
 			}
 			
 			SetPixBlock(ix, iy, data, buffer);
@@ -233,6 +236,12 @@ void SetBrightness(unsigned char brightness)
 	g_DisplayReg.ChangeBrightnessRequest = true;
 }
 
+// Gets the overall image brightness (it may not be latched over yet)
+unsigned char GetBrightness()
+{
+	return g_DisplayReg.BrightnessLevel;
+}
+
 // Set the hold values for the gray scale bit-planes
 // Values are differential and the brightnesses are effectively a, a+b, and a+b+c 
 // So, in order to get a 1, 5, 9 spread, you would pass in a=1, b=4, c=4
@@ -243,6 +252,13 @@ void SetHoldTimings(unsigned char a, unsigned char b, unsigned char c)
 	g_DisplayReg.GammaTable[2] = c;
 }
 
+void GetHoldTimings(unsigned char *a, unsigned char *b, unsigned char *c)
+{
+	*a = g_DisplayReg.GammaTable[0];
+	*b = g_DisplayReg.GammaTable[1];
+	*c = g_DisplayReg.GammaTable[2];
+}
+
 // Sets the timeout parameters and behavior
 // A timeout of 255 disables idle timeouts
 void SetIdleTimeout(unsigned char fade, unsigned char resetToBootImage, unsigned char timeout)
@@ -250,6 +266,13 @@ void SetIdleTimeout(unsigned char fade, unsigned char resetToBootImage, unsigned
 	g_DisplayReg.IdleFadeEnable = fade;
 	g_DisplayReg.IdleResetToBootImage = resetToBootImage;
 	g_DisplayReg.TimeoutTrigger = timeout;
+}
+
+void GetIdleTimeout(unsigned char *fade, unsigned char *resetToBootImage, unsigned char *timeout)
+{
+	*fade = g_DisplayReg.IdleFadeEnable;
+	*resetToBootImage = g_DisplayReg.IdleResetToBootImage;
+	*timeout = g_DisplayReg.TimeoutTrigger;
 }
 
 // Heartbeat to reset the idle timeout counter
@@ -272,6 +295,12 @@ static inline void StartFade()
 {
 	g_DisplayReg.FadeState = FadingAction::Out;
 	g_DisplayReg.FadeCounter = g_DisplayReg.BrightnessLevel;
+}
+
+void GetFadeState(unsigned char *counter, FadingAction::Enum *action)
+{
+	*counter = g_DisplayReg.FadeCounter;
+	*action = g_DisplayReg.FadeState;
 }
 
 // Modifies the overall display brightness
