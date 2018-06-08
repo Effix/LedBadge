@@ -117,72 +117,104 @@ bool SwapCommandHandler(unsigned char header, FetchByte fetch)
 
 bool ReadRectCommandHandler(unsigned char header, FetchByte fetch)
 {
-	unsigned char x = fetch(true);
-	unsigned char width = fetch(true);
-	unsigned char y_height = fetch(false);
+	unsigned char srcX_srcY = fetch(true);
+	unsigned char width_height = fetch(false);
 	unsigned char target = (header >> 2) & 0x3;
-	WriteSerialData((ResponseCodes::Pixels << 4) | (y_height & 0xF));
-	WriteSerialData(width);
-	ReadRect(x, (y_height >> 4) & 0xF, width, y_height & 0xF, target == BufferTarget::BackBuffer ? g_DisplayReg.BackBuffer : g_DisplayReg.FrontBuffer);
+	PixelFormat::Enum format = static_cast<PixelFormat::Enum>(header & 0x3);
+	WriteSerialData((ResponseCodes::Pixels << 4) | (format & 0x3));
+	WriteSerialData(width_height);
+	ReadRect((srcX_srcY >> 4) & 0xF, srcX_srcY & 0xF, (width_height >> 4) & 0xF, width_height & 0xF, format, 
+		target == BufferTarget::BackBuffer ? g_DisplayReg.BackBuffer : g_DisplayReg.FrontBuffer);
 	return true;
 }
 
 bool WriteRectCommandHandler(unsigned char header, FetchByte fetch)
 {
-	unsigned char x = fetch(true);
-	unsigned char width = fetch(true);
-	unsigned char y_height = fetch(true);
+	unsigned char dstX_dstY = fetch(true);
+	unsigned char width_height = fetch(true);
 	unsigned char target = (header >> 2) & 0x3;
-	PixelFormat::Enum format = static_cast<PixelFormat::Enum>((header >> 1) & 0x1);
-	Fill(x, (y_height >> 4) & 0xF, width, y_height & 0xF, format, fetch,
+	PixelFormat::Enum format = static_cast<PixelFormat::Enum>(header & 0x3);
+	Fill((dstX_dstY >> 4) & 0xF, dstX_dstY & 0xF, (width_height >> 4) & 0xF, width_height & 0xF, format, fetch,
 		target == BufferTarget::BackBuffer ? g_DisplayReg.BackBuffer : g_DisplayReg.FrontBuffer);
 	return true;
 }
 
 bool CopyRectCommandHandler(unsigned char header, FetchByte fetch)
 {
-	unsigned char srcX = fetch(true);
-	unsigned char dstX = fetch(true);
-	unsigned char srcY_dstY = fetch(true);
-	unsigned char width = fetch(true);
-	unsigned char height_srcTarget_dstTarget = fetch(false);
+	unsigned char srcX_srcY = fetch(true);
+	unsigned char dstX_dstY = fetch(true);
+	unsigned char width_height = fetch(false);
 
-	unsigned char *srcBuffer = ((height_srcTarget_dstTarget >> 2) & 0x3) == BufferTarget::BackBuffer ? g_DisplayReg.BackBuffer : g_DisplayReg.FrontBuffer;
-	unsigned char *dstBuffer = (height_srcTarget_dstTarget & 0x3) == BufferTarget::BackBuffer ? g_DisplayReg.BackBuffer : g_DisplayReg.FrontBuffer;
-	if(srcX == 0 && dstX == 0 && srcY_dstY == 0 && width == BufferBitPlaneStride && ((height_srcTarget_dstTarget >> 4) & 0xF) == BufferHeight)
+	unsigned char *srcBuffer = ((header >> 2) & 0x3) == BufferTarget::BackBuffer ? g_DisplayReg.BackBuffer : g_DisplayReg.FrontBuffer;
+	unsigned char *dstBuffer = (header & 0x3) == BufferTarget::BackBuffer ? g_DisplayReg.BackBuffer : g_DisplayReg.FrontBuffer;
+	if(srcX_srcY == 0 && dstX_dstY == 0 && ((width_height >> 4) & 0xF) == BufferBitPlaneStride && (width_height & 0xF) == BufferHeight)
 	{
 		CopyWholeBuffer(srcBuffer, dstBuffer);
 	}
 	else
 	{
-		Copy(srcX, (srcY_dstY >> 4) & 0xF, dstX, srcY_dstY & 0xF, width, (height_srcTarget_dstTarget >> 4) & 0xF, srcBuffer, dstBuffer);
+		Copy((srcX_srcY >> 4) & 0xF, srcX_srcY & 0xF, 
+			(dstX_dstY >> 4) & 0xF, dstX_dstY & 0xF, 
+			(width_height >> 4) & 0xF, width_height & 0xF, srcBuffer, dstBuffer);
 	}
 	return true;
 }
 
 bool FillRectCommandHandler(unsigned char header, FetchByte fetch)
 {
-	unsigned char x = fetch(true);
-	unsigned char width = fetch(true);
-	unsigned char y_height = fetch(false);
-	unsigned char target = (header >> 2) & 0x3;
-	unsigned char color = header & 0x3;
+	unsigned char dstX_dstY = fetch(true);
+	unsigned char width_height = fetch(true);
+	Pix2x8 color = fetch(true);
+	color = (color << 8) | fetch(false);
 
-	unsigned char *buffer = (target == BufferTarget::BackBuffer) ? g_DisplayReg.BackBuffer : g_DisplayReg.FrontBuffer;
-	if(color == 0 && x == 0 && width == BufferBitPlaneStride && y_height == BufferHeight)
+	unsigned char *buffer = ((header >> 2) & 0x3) == BufferTarget::BackBuffer ? g_DisplayReg.BackBuffer : g_DisplayReg.FrontBuffer;
+	if(color == 0 && dstX_dstY == 0 && ((width_height >> 4) & 0xF) == BufferBitPlaneStride && (width_height & 0xF) == BufferHeight)
 	{
 		ClearBuffer(buffer);
 	}
 	else
 	{
-		SolidFill(x, (y_height >> 4) & 0xF, width, y_height & 0xF, color, buffer);
+		SolidFill((dstX_dstY >> 4) & 0xF, dstX_dstY & 0xF, (width_height >> 4) & 0xF, width_height & 0xF, color, buffer);
 	}
 	return true;
 }
 
 bool ReadMemoryCommandHandler(unsigned char header, FetchByte fetch)
 {
+	unsigned int address = fetch(true);
+	address = (address << 8) | fetch(false);
 
+	unsigned char dwordCount = header & 0xF;
+
+	WriteSerialData((ResponseCodes::Memory << 4) | dwordCount);
+	WriteSerialData((address >> 8) & 0xFF);
+	WriteSerialData(address & 0xFF);
+
+	dwordCount += 1; // put in 1-16 range
+	bool external = (address & RomTarget::TypeMask) != RomTarget::TypeInternal;
+	if(external)
+	{
+		BeginReadExternalEEPROM(address & RomTarget::ExternalMask);
+		while(dwordCount--)
+		{
+			WriteSerialData(ReadNextByteFromExternalEEPROM(true));
+			WriteSerialData(ReadNextByteFromExternalEEPROM(true));
+			WriteSerialData(ReadNextByteFromExternalEEPROM(true));
+			WriteSerialData(ReadNextByteFromExternalEEPROM(dwordCount > 0));
+		}
+	}
+	else
+	{
+		address &= RomTarget::InternalMask;
+		while(dwordCount--)
+		{
+			WriteSerialData(ReadInternalEEPROM(address++));
+			WriteSerialData(ReadInternalEEPROM(address++));
+			WriteSerialData(ReadInternalEEPROM(address++));
+			WriteSerialData(ReadInternalEEPROM(address++));
+		}
+	}
+	return true;
 }
 
 bool WriteMemoryCommandHandler(unsigned char header, FetchByte fetch)

@@ -178,7 +178,7 @@ void Copy(unsigned char srcX, unsigned char srcY, unsigned char dstX, unsigned c
 }
 
 // Return a block of pixels from a buffer (sending it out to the serial port, 2bpp packed)
-void ReadRect(unsigned char x, unsigned char  y, unsigned char width, unsigned char height, unsigned char *buffer)
+void ReadRect(unsigned char x, unsigned char y, unsigned char width, unsigned char height, PixelFormat::Enum format, unsigned char *buffer)
 {
 	for(unsigned char iy = y, sy = y + height; iy < sy; ++iy)
 	{
@@ -186,7 +186,10 @@ void ReadRect(unsigned char x, unsigned char  y, unsigned char width, unsigned c
 		{
 			Pix2x8 val = GetPixBlock(ix, iy, buffer);
 			WriteSerialData((val >> 8) & 0xFF);
-			WriteSerialData(val & 0xFF);
+			if(format == PixelFormat::TwoBits)
+			{
+				WriteSerialData(val & 0xFF);
+			}
 		}
 	}
 }

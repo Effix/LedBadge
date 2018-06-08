@@ -102,7 +102,7 @@ void Fill(unsigned char x, unsigned char y, unsigned char width, unsigned char h
 void Copy(unsigned char srcX, unsigned char srcY, unsigned char dstX, unsigned char dstY, unsigned char width, unsigned char height, unsigned char *srcBuffer, unsigned char *dstBuffer);
 
 // Return a block of pixels from a buffer (sending it out to the serial port, 2bpp packed)
-void ReadRect(unsigned char x, unsigned char y, unsigned char width, unsigned char height, unsigned char *buffer = g_DisplayReg.BackBuffer);
+void ReadRect(unsigned char x, unsigned char y, unsigned char width, unsigned char height, PixelFormat::Enum format, unsigned char *buffer = g_DisplayReg.BackBuffer);
 
 // Clears a buffer to black (faster than solid fill)
 void ClearBuffer(unsigned char *buffer = g_DisplayReg.BackBuffer);
