@@ -89,7 +89,7 @@ static unsigned char g_Buffer1[BufferLength] __attribute__ ((section (".buffer1"
 DisplayState g_DisplayReg = {};
 
 // Clamps a span along an axis to the bounds [0, Extent)
-template<unsigned char Extent> inline void Clamp(unsigned char &pos, unsigned char &size)
+template<unsigned char Extent> void Clamp(unsigned char &pos, unsigned char &size)
 {
 	if(pos >= Extent)
 	{
@@ -108,6 +108,60 @@ template<unsigned char Extent> inline void Clamp(unsigned char &pos, unsigned ch
 		{
 			size -= delta;
 		}
+	}
+}
+
+// Sets a block of 8 pixel values in a buffer
+void SetPixBlockUnsafe(unsigned char *buffer, Pix2x8 val)
+{
+	const unsigned char low = val & 0xFF;
+	const unsigned char high = (val >> 8) & 0xFF;
+
+	*buffer = low | high;
+	buffer += BufferBitPlaneLength;
+	*buffer = high;
+	buffer += BufferBitPlaneLength;
+	*buffer = low & high;
+}
+
+// Sets a block of 8 pixel values in a buffer
+// The x parameter is in blocks, not pixels
+// Clips to the bounds of the buffer
+void SetPixBlock(unsigned char x, unsigned char y, Pix2x8 val, unsigned char *buffer)
+{
+	if(x < BufferBitPlaneStride && y < BufferHeight)
+	{
+		SetPixBlockUnsafe(buffer + y * BufferBitPlaneStride + x, val);
+	}
+}
+
+// Reads a block of 8 pixel values from a buffer
+Pix2x8 GetPixBlockUnsafe(unsigned char *buffer)
+{
+	const unsigned char b0 = *buffer;
+	buffer += BufferBitPlaneLength;
+	const unsigned char b1 = *buffer;
+	buffer += BufferBitPlaneLength;
+	const unsigned char b2 = *buffer;
+
+	const unsigned char high = b1;
+	const unsigned char low = (b0 ^ b1) | b2;
+
+	return (high << 8) | low;
+}
+
+// Reads a block of 8 pixel values from a buffer
+// The x parameter is in blocks, not pixels
+// Clips to the buffer bounds (returns 0 for out or bounds reads)
+Pix2x8 GetPixBlock(unsigned char x, unsigned char y, unsigned char *buffer)
+{
+	if(x < BufferBitPlaneStride && y < BufferHeight)
+	{
+		return GetPixBlockUnsafe(buffer);
+	}
+	else
+	{
+		return 0;
 	}
 }
 
@@ -216,11 +270,14 @@ void CopyWholeBuffer(unsigned char *srcBuffer, unsigned char *dstBuffer)
 void SwapBuffers()
 {
 	g_DisplayReg.SwapRequest = true;
-	while(g_DisplayReg.SwapRequest) {}
+	while(g_DisplayReg.SwapRequest)
+	{
+		PumpAck();
+	}
 }
 
 // Commits the requested buffer swap at the end of the frame
-static inline void LatchInFrameSwap()
+static void LatchInFrameSwap()
 {
 	if(g_DisplayReg.SwapRequest)
 	{
@@ -286,7 +343,7 @@ void ResetIdleTime()
 }
 
 // Stops and clears any in progress fade
-static inline void ResetFade()
+static void ResetFade()
 {
 	g_DisplayReg.TimeoutCounter = 0;
 	g_DisplayReg.FadeCounter = 0;
@@ -294,10 +351,16 @@ static inline void ResetFade()
 }
 
 // Begins a fade sequence
-static inline void StartFade()
+static void StartFade()
 {
 	g_DisplayReg.FadeState = FadingAction::Out;
 	g_DisplayReg.FadeCounter = g_DisplayReg.BrightnessLevel;
+}
+
+void SetFadeState(unsigned char counter, FadingAction::Enum action)
+{
+	g_DisplayReg.FadeCounter = counter;
+	g_DisplayReg.FadeState = action;
 }
 
 void GetFadeState(unsigned char *counter, FadingAction::Enum *action)
@@ -307,7 +370,7 @@ void GetFadeState(unsigned char *counter, FadingAction::Enum *action)
 }
 
 // Modifies the overall display brightness
-static inline void SetBrightnessLevelRegisters(unsigned char level)
+static void SetBrightnessLevelRegisters(unsigned char level)
 {
 	// the OE (output enable) signal is wired up to one of the pwm pins, so this has way more intensity levels than we can generate with the gray scale bit-planes
 	// since it is a separate pin, it overlays nicely, but dim values can end up looking a little flickery
@@ -319,7 +382,7 @@ static inline void SetBrightnessLevelRegisters(unsigned char level)
 }
 
 // Commits the requested brightness change when it is safe to do so
-static inline void LatchInBrightness()
+static void LatchInBrightness()
 {
 	if(g_DisplayReg.ChangeBrightnessRequest)
 	{
@@ -330,7 +393,7 @@ static inline void LatchInBrightness()
 }
 
 // Updates the timeout state machine
-static inline void PumpTimeout()
+static void PumpTimeout()
 {
 	if(g_DisplayReg.TimeoutTrigger < 255 && g_DisplayReg.FadeState == FadingAction::None && g_DisplayReg.TimeoutAllowUpdate)
 	{
@@ -364,7 +427,7 @@ static inline void PumpTimeout()
 }
 
 // Updates the fade state machine
-static inline void PumpFade()
+static void PumpFade()
 {
 	switch(g_DisplayReg.FadeState)
 	{
@@ -475,7 +538,7 @@ void EnableDisplay(bool enable)
 }
 
 // Updates one segment of the display (one half a a row)
-inline void RefreshDisplay()
+void RefreshDisplay()
 {
 	unsigned char y = g_RowDitherTable[g_DisplayReg.Y];
 	g_DisplayReg.BufferP = g_DisplayReg.FrontBuffer + 

@@ -79,16 +79,6 @@ struct DisplayState
 extern DisplayState g_DisplayReg;
 extern const unsigned char g_RowDitherTable[BufferHeight];
 
-// Sets a block of 8 pixel values in a buffer
-// The x parameter is in blocks, not pixels
-// Clips to the bounds of the buffer
-inline void SetPixBlock(unsigned char x, unsigned char y, Pix2x8 val, unsigned char *buffer = g_DisplayReg.BackBuffer);
-
-// Reads a block of 8 pixel values from a buffer
-// The x parameter is in blocks, not pixels
-// Clips to the buffer bounds (returns 0 for out or bounds reads)
-inline Pix2x8 GetPixBlock(unsigned char x, unsigned char y, unsigned char *buffer = g_DisplayReg.BackBuffer);
-
 // Set a block of pixels in a buffer to a particular value
 // The x and width parameters are in blocks, not pixels
 void SolidFill(unsigned char x, unsigned char y, unsigned char width, unsigned char height, Pix2x8 val, unsigned char *buffer = g_DisplayReg.BackBuffer);
@@ -135,6 +125,8 @@ void GetIdleTimeout(unsigned char *fade, unsigned char *resetToBootImage, unsign
 // Heartbeat to reset the idle timeout counter
 void ResetIdleTime();
 
+void SetFadeState(unsigned char counter, FadingAction::Enum action);
+
 void GetFadeState(unsigned char *counter, FadingAction::Enum *action);
 
 // Sets up the ports bound to the led drivers configures the output state, and fills the front buffer with the startup image
@@ -143,66 +135,5 @@ void ConfigureDisplay();
 
 // Helper for blanking out the display during long operations while interrupts are disabled
 void EnableDisplay(bool enable);
-
-//
-// Inline implementations
-//
-
-inline void SetPixBlockUnsafe(unsigned char *buffer, Pix2x8 val) __attribute__ ((always_inline));
-inline Pix2x8 GetPixBlockUnsafe(unsigned char *buffer) __attribute__ ((always_inline));
-
-// Sets a block of 8 pixel values in a buffer
-inline void SetPixBlockUnsafe(unsigned char *buffer, Pix2x8 val)
-{
-	const unsigned char low = val & 0xFF;
-	const unsigned char high = (val >> 8) & 0xFF;
-
-	*buffer = low | high;
-	buffer += BufferBitPlaneLength;
-	*buffer = high;
-	buffer += BufferBitPlaneLength;
-	*buffer = low & high;
-}
-
-// Sets a block of 8 pixel values in a buffer
-// The x parameter is in blocks, not pixels
-// Clips to the bounds of the buffer
-inline void SetPixBlock(unsigned char x, unsigned char y, Pix2x8 val, unsigned char *buffer)
-{
-	if(x < BufferBitPlaneStride && y < BufferHeight)
-	{
-		SetPixBlockUnsafe(buffer + y * BufferBitPlaneStride + x, val);
-	}
-}
-
-// Reads a block of 8 pixel values from a buffer
-inline Pix2x8 GetPixBlockUnsafe(unsigned char *buffer)
-{
-	const unsigned char b0 = *buffer;
-	buffer += BufferBitPlaneLength;
-	const unsigned char b1 = *buffer;
-	buffer += BufferBitPlaneLength;
-	const unsigned char b2 = *buffer;
-
-	const unsigned char high = b1;
-	const unsigned char low = (b0 ^ b1) | b2;
-
-	return (high << 8) | low;
-}
-
-// Reads a block of 8 pixel values from a buffer
-// The x parameter is in blocks, not pixels
-// Clips to the buffer bounds (returns 0 for out or bounds reads)
-inline Pix2x8 GetPixBlock(unsigned char x, unsigned char y, unsigned char *buffer)
-{
-	if(x < BufferBitPlaneStride && y < BufferHeight)
-	{
-		return GetPixBlockUnsafe(buffer);
-	}
-	else
-	{
-		return 0;
-	}
-}
 
 #endif /* DISPLAY_H_ */

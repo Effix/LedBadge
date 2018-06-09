@@ -24,7 +24,7 @@ Note: I have run across another variant of this 48x12 screen that is totally dif
 
 ##### Notable components:
 * 48x12 array of leds
-* Atmel ATMega88PA (8 kb program, 1 kb sram, 512 byte internal eeprom)
+* Atmel ATMega88PA @12MHz (8 kb program, 1 kb sram, 512 byte internal eeprom)
 * Prolific PL2303 USB to serial interface
 * 12 MHz crystal oscillator (wired to the ATMega88PA)
 * 2 tact switches
@@ -81,7 +81,7 @@ Another supported variant of the badge is slightly smaller (36x12 pixels), the t
 
 ##### Notable components:
 * 36x12 array of leds
-* Atmel ATMega8A (8 kb program, 1 kb sram, 512 byte internal eeprom)
+* Atmel ATMega8A @8MHz (8 kb program, 1 kb sram, 512 byte internal eeprom)
 * Prolific PL2303 USB to serial interface
 * 12 MHz crystal oscillator (wired to the PL2303)
 * 2 tact switches

@@ -79,6 +79,16 @@ void BeginWriteExternalEEPROM(unsigned int addr)
 	}
 }
 
+// Stuff a byte
+void WriteNextByteToExternalEEPROM(unsigned char data, bool moreBytes)
+{
+	WriteI2C(data);
+	if(!moreBytes)
+	{
+		StopI2C();
+	}
+}
+
 // Do a burst write to the off chip memory
 // A maximum of 64 bytes can be written at a time (to a window aligned to a multiple of 64 bytes)
 unsigned char WriteExternalEEPROMPage(unsigned int addr, unsigned char count, unsigned char *data)
@@ -93,9 +103,8 @@ unsigned char WriteExternalEEPROMPage(unsigned int addr, unsigned char count, un
 	BeginWriteExternalEEPROM(addr);
 	while(count--)
 	{
-		WriteI2C(*data++);
+		WriteNextByteToExternalEEPROM(*data++, count > 0);
 	}
-	StopI2C();
 
 	return written;
 }

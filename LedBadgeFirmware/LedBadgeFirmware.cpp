@@ -37,31 +37,9 @@ int main(void)
 		{
 			DispatchAnimCommand();
 		}
+		else
+		{
+			PumpAck();
+		}
 	}
-
-
-		/*
-			case CommandCodes::SetBrightness:
-			{
-				// set the output brightness for the screen
-				SetBrightness(ReadSerialData());
-				break;
-			}
-			case CommandCodes::SetHoldTimings:
-			{
-				// set the hold values for the gray scale bit-planes
-				unsigned char b_c = ReadSerialData();
-				SetHoldTimings(command_other & 0xF, (b_c >> 4) & 0xF, b_c & 0xF);
-				break;
-			}
-			case CommandCodes::SetIdleTimeout:
-			{
-				// set the idle time behavior and parameters
-				unsigned char timeout = ReadSerialData();
-				unsigned char fade = (command_other >> 3) & 0x1;
-				unsigned char resetToBootImage = (command_other >> 2) & 0x1;
-				SetIdleTimeout(fade, resetToBootImage, timeout);
-				break;
-			}
-		*/
 }

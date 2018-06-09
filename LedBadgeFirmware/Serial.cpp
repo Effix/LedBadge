@@ -128,6 +128,11 @@ unsigned char GetPendingSerialDataSize()
 	return count;
 }
 
+void PumpAck()
+{
+	// TODO: 
+}
+
 // Interrupt handler for incoming IO
 // Shovels data into the circular read buffer
 ISR(UR_RX_vect, ISR_BLOCK)

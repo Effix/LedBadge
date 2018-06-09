@@ -21,4 +21,6 @@ void WriteSerialData(unsigned char data);
 // Gets the total number of bytes that can be read without blocking
 unsigned char GetPendingSerialDataSize();
 
+void PumpAck();
+
 #endif /* SERIAL_H_ */

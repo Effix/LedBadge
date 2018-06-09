@@ -23,6 +23,9 @@ void ResetExternalEEPROM();
 // This will block while the off chip memory is busy in an internal write state
 void BeginWriteExternalEEPROM(unsigned int addr);
 
+// Stuff a byte
+void WriteNextByteToExternalEEPROM(unsigned char data, bool moreBytes);
+
 // Do a burst write to the off chip memory
 // A maximum of 64 bytes can be written at a time (to a window aligned to a multiple of 64 bytes)
 unsigned char WriteExternalEEPROMPage(unsigned int addr, unsigned char count, unsigned char *data);
