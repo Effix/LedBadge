@@ -29,6 +29,17 @@ struct FadingAction
 	};
 };
 
+struct EndOfFadeAction
+{
+	enum Enum
+	{
+		None,
+		Clear,
+		RestartAnim,
+		ResumeAnim
+	};
+};
+
 typedef unsigned char (*FetchByte)(bool moreBytes);
 
 enum
@@ -68,7 +79,7 @@ struct DisplayState
 	FadingAction::Enum FadeState;								// current action for the fade state machine
 	unsigned char FadeCounter;									// counter for the fade state machine
 	bool IdleFadeEnable;										// true to invoke fading to the idle reset image
-	bool IdleResetToBootImage;									// true to reset to the startup image instead of just black
+	EndOfFadeAction::Enum IdleEndFadeAction;					// what happens before the badge fades back in
 	bool BufferSelect;											// index of the current front buffer
 	unsigned char BrightnessLevel;								// current output brightness
 	unsigned char GammaTable[BufferBitPlanes];					// hold timings for the bit-planes
@@ -118,9 +129,9 @@ void GetHoldTimings(unsigned char *a, unsigned char *b, unsigned char *c);
 
 // Sets the timeout parameters and behavior
 // A timeout of 255 disables idle timeouts
-void SetIdleTimeout(unsigned char fade, unsigned char resetToBootImage, unsigned char timeout);
+void SetIdleTimeout(bool fade, EndOfFadeAction::Enum endFadeAction, unsigned char timeout);
 
-void GetIdleTimeout(unsigned char *fade, unsigned char *resetToBootImage, unsigned char *timeout);
+void GetIdleTimeout(bool *fade, EndOfFadeAction::Enum *endFadeAction, unsigned char *timeout);
 
 // Heartbeat to reset the idle timeout counter
 void ResetIdleTime();

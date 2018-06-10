@@ -5,6 +5,13 @@
 #include "Display.h"
 #include "Buttons.h"
 
+#if defined(__AVR_ATmega88PA__)
+#define F_CPU 12000000UL
+#elif defined(__AVR_ATmega8A__)
+#define F_CPU 8000000UL
+#endif
+#include <util/delay.h>
+
 // Command/Animation state machine values
 CommandState g_CommandReg = {};
 
@@ -16,7 +23,7 @@ bool PingCommandHandler(unsigned char header, FetchByte fetch)
 	g_CommandReg.LastCookie = cookie;
 	if(header & 0x08)
 	{
-		WriteSerialData(ResponseCodes::Ack << 4);
+		WriteSerialData((ResponseCodes::Ack << 4) | (1 << 3));
 		WriteSerialData(cookie);
 	}
 	return true;
@@ -48,10 +55,12 @@ bool QuerySettingCommandHandler(unsigned char header, FetchByte fetch)
 		}
 		case Settings::IdleTimeout:
 		{
-			unsigned char timeout, fade, resetToBootImage;
-			GetIdleTimeout(&fade, &resetToBootImage, &timeout);
+			bool fade;
+			unsigned char timeout;
+			EndOfFadeAction::Enum endFadeAction;
+			GetIdleTimeout(&fade, &endFadeAction, &timeout);
 			WriteSerialData(timeout);
-			WriteSerialData(((fade & 0x1) << 7) | ((resetToBootImage & 0x1) << 6));
+			WriteSerialData(((fade & 0x1) << 7) | ((endFadeAction & 0x3) << 5));
 			break;
 		}
 		case Settings::FadeValue:
@@ -128,8 +137,8 @@ bool UpdateSettingCommandHandler(unsigned char header, FetchByte fetch)
 		case Settings::IdleTimeout:
 		{
 			unsigned char timeout = fetch(true);
-			unsigned char fade_resetToBootImage_x = fetch(false);
-			SetIdleTimeout(timeout, (fade_resetToBootImage_x >> 7) & 0x1, (fade_resetToBootImage_x >> 6) & 0x1);
+			unsigned char fade_endFadeAction_x = fetch(false);
+			SetIdleTimeout((bool)((fade_endFadeAction_x >> 7) & 0x1), static_cast<EndOfFadeAction::Enum>((fade_endFadeAction_x >> 5) & 0x3), timeout);
 			break;
 		}
 		case Settings::FadeValue:
@@ -151,8 +160,16 @@ bool UpdateSettingCommandHandler(unsigned char header, FetchByte fetch)
 
 bool SwapCommandHandler(unsigned char header, FetchByte fetch)
 {
+	unsigned char holdFrames = fetch(false);
 	SwapBuffers();
-	return fetch(false) == 0; // TODO: get hold time
+
+	while(holdFrames--)
+	{
+		PumpAck();
+		_delay_ms(16.6);
+	}
+
+	return true;
 }
 
 bool ReadRectCommandHandler(unsigned char header, FetchByte fetch)
@@ -301,14 +318,14 @@ unsigned char FetchSerial(bool moreBytes)
 	return ReadSerialData();
 }
 
-static unsigned char FetchInternalEEPROM(bool moreBytes)
+unsigned char FetchInternalEEPROM(bool moreBytes)
 {
 	int readAddr = g_CommandReg.AnimReadPosition;
 	g_CommandReg.AnimReadPosition = ((g_CommandReg.AnimReadPosition + 1) & (EepromInternalSize - 1)) | RomTarget::TypeInternal;
 	return ReadInternalEEPROM(readAddr);
 }
 
-static unsigned char FetchExternalEEPROM(bool moreBytes)
+unsigned char FetchExternalEEPROM(bool moreBytes)
 {
 	g_CommandReg.AnimReadPosition = ((g_CommandReg.AnimReadPosition + 1) & (EepromExternalSize - 1)) | RomTarget::TypeExternal;
 	return ReadNextByteFromExternalEEPROM(moreBytes);
@@ -316,39 +333,18 @@ static unsigned char FetchExternalEEPROM(bool moreBytes)
 
 // Helper for re-syncing after an invalid command is processed
 // Similar to the buffer overflow re-sync, but this can be called from outside of an interrupt handler
-static void BadCommandPanic()
+void BadCommandPanic()
 {
 	// notify of panic state
 	WriteSerialData((ResponseCodes::Error << 4) | ErrorCodes::BadSerialCommand);
-	
-	unsigned char count = 0;
-	for(;;)
-	{
-		// wait for a new byte
-		if(ReadSerialData() == 0xFF)
-		{
-			// check for the full sequence of nops
-			if(++count == 0)
-			{
-				// finished!
-				break;
-			}
-		}
-		else
-		{
-			// probably still in the middle of frame data... start over
-			count = 0;
-		}
-	}
-	
-	// ok, all resynchronized
-	WriteSerialData(ResponseCodes::Ack << 4);
+	WriteSerialData(g_CommandReg.LastCookie);
 }
 
-static void BadAnimPanic()
+void BadAnimPanic()
 {
 	// notify of panic state
 	WriteSerialData((ResponseCodes::Error << 4) | ErrorCodes::BadAnimCommand);
+	WriteSerialData(g_CommandReg.LastCookie);
 
 	g_CommandReg.AnimPlaying = false;
 }
@@ -420,5 +416,34 @@ void DispatchAnimCommand()
 
 void InitAnim()
 {
-	// TODO: probe internal/external eeprom locations for a valid animation, otherwise clear the screen
+	ClearBuffer(g_DisplayReg.FrontBuffer);
+	g_CommandReg.AnimReadPosition = 0;
+	g_CommandReg.AnimPlaying = 0;
+
+	static const unsigned char Magic[] = { '\0', 'H', '\0', 'i' };
+
+	bool internal =
+		ReadInternalEEPROM(0) == Magic[0] &&
+		ReadInternalEEPROM(1) == Magic[1] &&
+		ReadInternalEEPROM(2) == Magic[2] &&
+		ReadInternalEEPROM(3) == Magic[3];
+	if(internal)
+	{
+		g_CommandReg.AnimReadPosition = RomTarget::TypeInternal;
+		g_CommandReg.AnimPlaying = 1;
+	}
+	else
+	{
+		BeginReadExternalEEPROM(0);
+		bool external =
+			ReadNextByteFromExternalEEPROM(true)  == Magic[0] &&
+			ReadNextByteFromExternalEEPROM(true)  == Magic[1] &&
+			ReadNextByteFromExternalEEPROM(true)  == Magic[2] &&
+			ReadNextByteFromExternalEEPROM(false) == Magic[3];
+		if(external)
+		{
+			g_CommandReg.AnimReadPosition = RomTarget::TypeExternal;
+			g_CommandReg.AnimPlaying = 1;
+		}
+	}
 }

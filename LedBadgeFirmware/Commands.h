@@ -88,7 +88,8 @@ struct ErrorCodes
 	enum Enum
 	{
 		Ok,
-		CorruptPacket,
+		CorruptPacketHeader,
+		CorruptPacketData,
 		ReceiveBufferOverrun,
 		EepromWriteOutOfBounds,
 		BadSerialCommand,

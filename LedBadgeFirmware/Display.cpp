@@ -277,7 +277,7 @@ void SwapBuffers()
 }
 
 // Commits the requested buffer swap at the end of the frame
-static void LatchInFrameSwap()
+void LatchInFrameSwap()
 {
 	if(g_DisplayReg.SwapRequest)
 	{
@@ -321,17 +321,17 @@ void GetHoldTimings(unsigned char *a, unsigned char *b, unsigned char *c)
 
 // Sets the timeout parameters and behavior
 // A timeout of 255 disables idle timeouts
-void SetIdleTimeout(unsigned char fade, unsigned char resetToBootImage, unsigned char timeout)
+void SetIdleTimeout(bool fade, EndOfFadeAction::Enum endFadeAction, unsigned char timeout)
 {
 	g_DisplayReg.IdleFadeEnable = fade;
-	g_DisplayReg.IdleResetToBootImage = resetToBootImage;
+	g_DisplayReg.IdleEndFadeAction = endFadeAction;
 	g_DisplayReg.TimeoutTrigger = timeout;
 }
 
-void GetIdleTimeout(unsigned char *fade, unsigned char *resetToBootImage, unsigned char *timeout)
+void GetIdleTimeout(bool *fade, EndOfFadeAction::Enum *endFadeAction, unsigned char *timeout)
 {
 	*fade = g_DisplayReg.IdleFadeEnable;
-	*resetToBootImage = g_DisplayReg.IdleResetToBootImage;
+	*endFadeAction = g_DisplayReg.IdleEndFadeAction;
 	*timeout = g_DisplayReg.TimeoutTrigger;
 }
 
@@ -343,7 +343,7 @@ void ResetIdleTime()
 }
 
 // Stops and clears any in progress fade
-static void ResetFade()
+void ResetFade()
 {
 	g_DisplayReg.TimeoutCounter = 0;
 	g_DisplayReg.FadeCounter = 0;
@@ -351,7 +351,7 @@ static void ResetFade()
 }
 
 // Begins a fade sequence
-static void StartFade()
+void StartFade()
 {
 	g_DisplayReg.FadeState = FadingAction::Out;
 	g_DisplayReg.FadeCounter = g_DisplayReg.BrightnessLevel;
@@ -370,7 +370,7 @@ void GetFadeState(unsigned char *counter, FadingAction::Enum *action)
 }
 
 // Modifies the overall display brightness
-static void SetBrightnessLevelRegisters(unsigned char level)
+void SetBrightnessLevelRegisters(unsigned char level)
 {
 	// the OE (output enable) signal is wired up to one of the pwm pins, so this has way more intensity levels than we can generate with the gray scale bit-planes
 	// since it is a separate pin, it overlays nicely, but dim values can end up looking a little flickery
@@ -382,7 +382,7 @@ static void SetBrightnessLevelRegisters(unsigned char level)
 }
 
 // Commits the requested brightness change when it is safe to do so
-static void LatchInBrightness()
+void LatchInBrightness()
 {
 	if(g_DisplayReg.ChangeBrightnessRequest)
 	{
@@ -392,8 +392,30 @@ static void LatchInBrightness()
 	}
 }
 
+void RunEndOfFadeAction()
+{
+	switch(g_DisplayReg.IdleEndFadeAction)
+	{
+		case EndOfFadeAction::ResumeAnim:
+		{
+			// TODO:
+			break;
+		}
+		case EndOfFadeAction::RestartAnim:
+		{
+			// TODO:
+			break;
+		}
+		case EndOfFadeAction::Clear:
+		{
+			ClearBuffer(g_DisplayReg.FrontBuffer);
+			break;
+		}
+	}
+}
+
 // Updates the timeout state machine
-static void PumpTimeout()
+void PumpTimeout()
 {
 	if(g_DisplayReg.TimeoutTrigger < 255 && g_DisplayReg.FadeState == FadingAction::None && g_DisplayReg.TimeoutAllowUpdate)
 	{
@@ -405,15 +427,7 @@ static void PumpTimeout()
 			}
 			else
 			{
-				if(g_DisplayReg.IdleResetToBootImage)
-				{
-					// LoadPowerOnImage(); TODO: Anim Refactor
-				}
-				else
-				{
-					ClearBuffer(g_DisplayReg.FrontBuffer);
-				}
-				
+				RunEndOfFadeAction();
 				g_DisplayReg.TimeoutCounter = 0;
 			}
 			
@@ -427,7 +441,7 @@ static void PumpTimeout()
 }
 
 // Updates the fade state machine
-static void PumpFade()
+void PumpFade()
 {
 	switch(g_DisplayReg.FadeState)
 	{
@@ -449,15 +463,7 @@ static void PumpFade()
 		{
 			if(g_DisplayReg.FadeCounter == 0)
 			{
-				if(g_DisplayReg.IdleResetToBootImage)
-				{
-					// LoadPowerOnImage(); TODO: Anim Refactor
-				}
-				else
-				{
-					ClearBuffer(g_DisplayReg.FrontBuffer);
-				}
-				
+				RunEndOfFadeAction();
 				g_DisplayReg.FadeState = FadingAction::In;
 			}
 			else
