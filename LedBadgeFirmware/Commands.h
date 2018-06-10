@@ -19,8 +19,7 @@ struct SerialCommands
 		FillRect,			// 
 		ReadMemory,			// 
 		WriteMemory,		// 
-		AnimControl,		// 
-		Fade,				// 
+		PlayFromBookmark,	// 
 		
 		Count
 	};
@@ -36,8 +35,7 @@ struct AnimCommands
 		WriteRect,			// 
 		CopyRect,			// 
 		FillRect,			// 
-		AnimControl,		// 
-		Fade,				// 
+		PlayFromBookmark,	// 
 
 		Count
 	};
@@ -52,6 +50,7 @@ struct Settings
 		IdleTimeout,		// 
 		FadeValue,			// 
 		AnimBookmarkPos,	// 
+		AnimReadPos,		// 
 		AnimPlayState,		// 
 		ButtonState,		// 
 		BufferFullness,		// 
@@ -131,12 +130,22 @@ struct RomTarget
 	};
 };
 
+struct AnimState
+{
+	enum Enum
+	{
+		Stopped,
+		Playing,
+		SingleStepping
+	};
+};
+
 struct CommandState
 {
-	unsigned int AnimReadPosition;		// 
-	unsigned int AnimBookmark;			// 
-	unsigned int AnimFramesToHold;		//
-	bool AnimPlaying;					// 
+	unsigned int AnimStart;				//
+	unsigned int AnimReadPosition;		//
+	unsigned int AnimBookmark;			//
+	AnimState::Enum AnimPlaying;		// 
 	unsigned char LastCookie;			//
 };
 

@@ -1,6 +1,7 @@
 #include "Display.h"
 #include "Serial.h"
 #include "Eeprom.h"
+#include "Commands.h"
 #include <util/atomic.h>
 
 template<bool pred> struct CT_Assert { typedef char arr[pred ? 0 : -1]; };
@@ -398,12 +399,14 @@ void RunEndOfFadeAction()
 	{
 		case EndOfFadeAction::ResumeAnim:
 		{
-			// TODO:
+			g_CommandReg.AnimReadPosition = g_CommandReg.AnimBookmark;
+			g_CommandReg.AnimPlaying = AnimState::Playing;
 			break;
 		}
 		case EndOfFadeAction::RestartAnim:
 		{
-			// TODO:
+			g_CommandReg.AnimReadPosition = g_CommandReg.AnimStart;
+			g_CommandReg.AnimPlaying = AnimState::Playing;
 			break;
 		}
 		case EndOfFadeAction::Clear:
@@ -411,13 +414,14 @@ void RunEndOfFadeAction()
 			ClearBuffer(g_DisplayReg.FrontBuffer);
 			break;
 		}
+		case  EndOfFadeAction::None: break;
 	}
 }
 
 // Updates the timeout state machine
 void PumpTimeout()
 {
-	if(g_DisplayReg.TimeoutTrigger < 255 && g_DisplayReg.FadeState == FadingAction::None && g_DisplayReg.TimeoutAllowUpdate)
+	if(g_DisplayReg.TimeoutTrigger < 255 && g_DisplayReg.FadeState == FadingAction::None && g_DisplayReg.TimeoutAllowUpdate && !g_CommandReg.AnimPlaying)
 	{
 		if(g_DisplayReg.TimeoutCounter >= g_DisplayReg.TimeoutTrigger)
 		{
@@ -473,6 +477,7 @@ void PumpFade()
 			SetBrightnessLevelRegisters(g_DisplayReg.FadeCounter);
 			break;
 		}
+		case FadingAction::None: break;
 	}
 }
 

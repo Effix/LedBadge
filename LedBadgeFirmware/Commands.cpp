@@ -78,10 +78,15 @@ bool QuerySettingCommandHandler(unsigned char header, FetchByte fetch)
 			WriteSerialData((g_CommandReg.AnimBookmark >> 8) & 0xFF);
 			break;
 		}
+		case Settings::AnimReadPos:
+		{
+			WriteSerialData(g_CommandReg.AnimReadPosition & 0xFF);
+			WriteSerialData((g_CommandReg.AnimReadPosition >> 8) & 0xFF);
+			break;
+		}
 		case Settings::AnimPlayState:
 		{
-			WriteSerialData(g_CommandReg.AnimPlaying & 0xFF);
-			WriteSerialData((((g_CommandReg.AnimPlaying >> 8) & 0x3F) << 2) | (g_CommandReg.AnimPlaying & 0x3));
+			WriteSerialData(g_CommandReg.AnimPlaying);
 			break;
 		}
 		case Settings::ButtonState:
@@ -154,6 +159,17 @@ bool UpdateSettingCommandHandler(unsigned char header, FetchByte fetch)
 			g_CommandReg.AnimBookmark = (g_CommandReg.AnimBookmark << 8) | fetch(false);
 			break;
 		}
+		case Settings::AnimReadPos:
+		{
+			g_CommandReg.AnimReadPosition = fetch(true);
+			g_CommandReg.AnimReadPosition = (g_CommandReg.AnimReadPosition << 8) | fetch(false);
+			break;
+		}
+		case Settings::AnimPlayState:
+		{
+			g_CommandReg.AnimPlaying = static_cast<AnimState::Enum>(fetch(false) & 0x3);
+			break;
+		}
 	}
 	return true;
 }
@@ -162,6 +178,16 @@ bool SwapCommandHandler(unsigned char header, FetchByte fetch)
 {
 	unsigned char holdFrames = fetch(false);
 	SwapBuffers();
+
+	if(g_CommandReg.AnimPlaying)
+	{
+		g_CommandReg.AnimBookmark = g_CommandReg.AnimReadPosition;
+
+		if(g_CommandReg.AnimPlaying == AnimState::SingleStepping)
+		{
+			g_CommandReg.AnimPlaying = AnimState::Stopped;
+		}
+	}
 
 	while(holdFrames--)
 	{
@@ -308,9 +334,11 @@ bool WriteMemoryCommandHandler_SerialOnly(unsigned char header, FetchByte fetch)
 	return true;
 }
 
-bool AnimControlCommandHandler(unsigned char header, FetchByte fetch)
+bool PlayFromBookmarkCommandHandler(unsigned char header, FetchByte fetch)
 {
-	// TODO: 
+	g_CommandReg.AnimReadPosition = g_CommandReg.AnimBookmark;
+	g_CommandReg.AnimPlaying = static_cast<AnimState::Enum>(fetch(false) & 0x3);
+	return true; 
 }
 
 unsigned char FetchSerial(bool moreBytes)
@@ -346,7 +374,7 @@ void BadAnimPanic()
 	WriteSerialData((ResponseCodes::Error << 4) | ErrorCodes::BadAnimCommand);
 	WriteSerialData(g_CommandReg.LastCookie);
 
-	g_CommandReg.AnimPlaying = false;
+	g_CommandReg.AnimPlaying = AnimState::Stopped;
 }
 
 static const CommandHandler s_SerialHandlers[SerialCommands::Count] = 
@@ -361,13 +389,18 @@ static const CommandHandler s_SerialHandlers[SerialCommands::Count] =
 	FillRectCommandHandler,
 	ReadMemoryCommandHandler,
 	WriteMemoryCommandHandler_SerialOnly,
-	AnimControlCommandHandler
+	PlayFromBookmarkCommandHandler
 };
 
 void DispatchSerialCommand()
 {
 	unsigned char commandHeader = ReadSerialData();
 	unsigned char command = (commandHeader >> 4) & 0xF;
+
+	if(g_CommandReg.AnimPlaying)
+	{
+		g_CommandReg.AnimPlaying = AnimState::Stopped;
+	}
 	
 	if((command >= SerialCommands::Count) || !s_SerialHandlers[command](commandHeader, FetchSerial))
 	{
@@ -383,7 +416,7 @@ static const CommandHandler s_AnimHandlers[AnimCommands::Count] =
 	WriteRectCommandHandler,
 	CopyRectCommandHandler,
 	FillRectCommandHandler,
-	AnimControlCommandHandler
+	PlayFromBookmarkCommandHandler
 };
 
 void DispatchAnimCommand()
@@ -417,33 +450,37 @@ void DispatchAnimCommand()
 void InitAnim()
 {
 	ClearBuffer(g_DisplayReg.FrontBuffer);
+	g_CommandReg.AnimStart = 
+	g_CommandReg.AnimBookmark =
 	g_CommandReg.AnimReadPosition = 0;
-	g_CommandReg.AnimPlaying = 0;
+	g_CommandReg.AnimPlaying = AnimState::Stopped;
 
 	static const unsigned char Magic[] = { '\0', 'H', '\0', 'i' };
 
-	bool internal =
-		ReadInternalEEPROM(0) == Magic[0] &&
-		ReadInternalEEPROM(1) == Magic[1] &&
-		ReadInternalEEPROM(2) == Magic[2] &&
-		ReadInternalEEPROM(3) == Magic[3];
+	bool internal = ReadInternalEEPROM(0) == Magic[0];
+	internal &= ReadInternalEEPROM(1) == Magic[1];
+	internal &= ReadInternalEEPROM(2) == Magic[2];
+	internal &= ReadInternalEEPROM(3) == Magic[3];
 	if(internal)
 	{
+		g_CommandReg.AnimStart = 
+		g_CommandReg.AnimBookmark =
 		g_CommandReg.AnimReadPosition = RomTarget::TypeInternal;
-		g_CommandReg.AnimPlaying = 1;
+		g_CommandReg.AnimPlaying = AnimState::Playing;
 	}
 	else
 	{
 		BeginReadExternalEEPROM(0);
-		bool external =
-			ReadNextByteFromExternalEEPROM(true)  == Magic[0] &&
-			ReadNextByteFromExternalEEPROM(true)  == Magic[1] &&
-			ReadNextByteFromExternalEEPROM(true)  == Magic[2] &&
-			ReadNextByteFromExternalEEPROM(false) == Magic[3];
+		bool external = ReadNextByteFromExternalEEPROM(true) == Magic[0];
+		external = ReadNextByteFromExternalEEPROM(true) == Magic[1];
+		external = ReadNextByteFromExternalEEPROM(true) == Magic[2];
+		external = ReadNextByteFromExternalEEPROM(false) == Magic[3];
 		if(external)
 		{
+			g_CommandReg.AnimStart = 
+			g_CommandReg.AnimBookmark =
 			g_CommandReg.AnimReadPosition = RomTarget::TypeExternal;
-			g_CommandReg.AnimPlaying = 1;
+			g_CommandReg.AnimPlaying = AnimState::Playing;
 		}
 	}
 }
