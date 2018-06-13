@@ -42,46 +42,37 @@ bool QuerySettingCommandHandler(unsigned char header, FetchByte fetch)
 	{
 		case Settings::Brightness:
 		{
-			WriteSerialData(GetBrightness());
+			WriteSerialData(g_DisplayReg.BrightnessLevel);
 			break;
 		}
 		case Settings::HoldTimings:
 		{
-			unsigned char a, b, c;
-			GetHoldTimings(&a, &b, &c);
-			WriteSerialData(((a & 0xF) << 4) | (b & 0xF));
-			WriteSerialData(((c & 0xF) << 4));
+			WriteSerialData(((g_DisplayReg.GammaTable[0] & 0xF) << 4) | (g_DisplayReg.GammaTable[1] & 0xF));
+			WriteSerialData(((g_DisplayReg.GammaTable[2] & 0xF) << 4));
 			break;
 		}
 		case Settings::IdleTimeout:
 		{
-			bool fade;
-			unsigned char timeout;
-			EndOfFadeAction::Enum endFadeAction;
-			GetIdleTimeout(&fade, &endFadeAction, &timeout);
-			WriteSerialData(timeout);
-			WriteSerialData(((fade & 0x1) << 7) | ((endFadeAction & 0x3) << 5));
+			WriteSerialData(g_DisplayReg.TimeoutTrigger);
+			WriteSerialData(((g_DisplayReg.IdleFadeEnable & 0x1) << 7) | ((g_DisplayReg.IdleEndFadeAction & 0x3) << 5));
 			break;
 		}
 		case Settings::FadeValue:
 		{
-			unsigned char counter;
-			FadingAction::Enum action;
-			GetFadeState(&counter, &action);
-			WriteSerialData(counter);
-			WriteSerialData((action & 0x3) << 6);
+			WriteSerialData(g_DisplayReg.FadeCounter);
+			WriteSerialData((g_DisplayReg.FadeState & 0x3) << 6);
 			break;
 		}
 		case Settings::AnimBookmarkPos:
 		{
-			WriteSerialData(g_CommandReg.AnimBookmark & 0xFF);
 			WriteSerialData((g_CommandReg.AnimBookmark >> 8) & 0xFF);
+			WriteSerialData(g_CommandReg.AnimBookmark & 0xFF);
 			break;
 		}
 		case Settings::AnimReadPos:
 		{
-			WriteSerialData(g_CommandReg.AnimReadPosition & 0xFF);
 			WriteSerialData((g_CommandReg.AnimReadPosition >> 8) & 0xFF);
+			WriteSerialData(g_CommandReg.AnimReadPosition & 0xFF);
 			break;
 		}
 		case Settings::AnimPlayState:
@@ -135,34 +126,37 @@ bool UpdateSettingCommandHandler(unsigned char header, FetchByte fetch)
 		case Settings::HoldTimings:
 		{
 			unsigned char a_b = fetch(true);
-			unsigned char c_x = fetch(false);
-			SetHoldTimings((a_b >> 4) & 0xf, a_b & 0xf, (c_x >> 4) & 0xf);
+			g_DisplayReg.GammaTable[0] = (a_b >> 4) & 0xf;
+			g_DisplayReg.GammaTable[1] = a_b & 0xf;
+			g_DisplayReg.GammaTable[2] = (fetch(false) >> 4) & 0xf;
 			break;
 		}
 		case Settings::IdleTimeout:
 		{
-			unsigned char timeout = fetch(true);
+			g_DisplayReg.TimeoutTrigger = fetch(true);
 			unsigned char fade_endFadeAction_x = fetch(false);
-			SetIdleTimeout((bool)((fade_endFadeAction_x >> 7) & 0x1), static_cast<EndOfFadeAction::Enum>((fade_endFadeAction_x >> 5) & 0x3), timeout);
+			g_DisplayReg.IdleFadeEnable = (bool)((fade_endFadeAction_x >> 7) & 0x1);
+			g_DisplayReg.IdleEndFadeAction = static_cast<EndOfFadeAction::Enum>((fade_endFadeAction_x >> 5) & 0x3);
 			break;
 		}
 		case Settings::FadeValue:
 		{
-			unsigned char counter = fetch(true);
-			FadingAction::Enum action = static_cast<FadingAction::Enum>((fetch(false) >> 6) & 0x3);
-			SetFadeState(counter, action);
+			g_DisplayReg.FadeCounter = fetch(true);
+			g_DisplayReg.FadeState = static_cast<FadingAction::Enum>((fetch(false) >> 6) & 0x3);
 			break;
 		}
 		case Settings::AnimBookmarkPos:
 		{
-			g_CommandReg.AnimBookmark = fetch(true);
-			g_CommandReg.AnimBookmark = (g_CommandReg.AnimBookmark << 8) | fetch(false);
+			unsigned short pos = fetch(true);
+			pos = (pos << 8) | fetch(false);
+			g_CommandReg.AnimBookmark = pos;
 			break;
 		}
 		case Settings::AnimReadPos:
 		{
-			g_CommandReg.AnimReadPosition = fetch(true);
-			g_CommandReg.AnimReadPosition = (g_CommandReg.AnimReadPosition << 8) | fetch(false);
+			unsigned short pos = fetch(true);
+			pos = (pos << 8) | fetch(false);
+			g_CommandReg.AnimReadPosition = pos;
 			break;
 		}
 		case Settings::AnimPlayState:
@@ -181,7 +175,10 @@ bool SwapCommandHandler(unsigned char header, FetchByte fetch)
 
 	if(g_CommandReg.AnimPlaying)
 	{
-		g_CommandReg.AnimBookmark = g_CommandReg.AnimReadPosition;
+		if(header & 0x08)
+		{
+			g_CommandReg.AnimBookmark = g_CommandReg.AnimReadPosition;
+		}
 
 		if(g_CommandReg.AnimPlaying == AnimState::SingleStepping)
 		{
@@ -336,8 +333,15 @@ bool WriteMemoryCommandHandler_SerialOnly(unsigned char header, FetchByte fetch)
 
 bool PlayFromBookmarkCommandHandler(unsigned char header, FetchByte fetch)
 {
+	unsigned int address = fetch(true);
+	address = (address << 8) | fetch(false);
+
+	if(header & 0x08)
+	{
+		g_CommandReg.AnimBookmark = address;
+	}
 	g_CommandReg.AnimReadPosition = g_CommandReg.AnimBookmark;
-	g_CommandReg.AnimPlaying = static_cast<AnimState::Enum>(fetch(false) & 0x3);
+	g_CommandReg.AnimPlaying = static_cast<AnimState::Enum>(header & 0x3);
 	return true; 
 }
 
@@ -472,9 +476,9 @@ void InitAnim()
 	{
 		BeginReadExternalEEPROM(0);
 		bool external = ReadNextByteFromExternalEEPROM(true) == Magic[0];
-		external = ReadNextByteFromExternalEEPROM(true) == Magic[1];
-		external = ReadNextByteFromExternalEEPROM(true) == Magic[2];
-		external = ReadNextByteFromExternalEEPROM(false) == Magic[3];
+		external &= ReadNextByteFromExternalEEPROM(true) == Magic[1];
+		external &= ReadNextByteFromExternalEEPROM(true) == Magic[2];
+		external &= ReadNextByteFromExternalEEPROM(false) == Magic[3];
 		if(external)
 		{
 			g_CommandReg.AnimStart = 

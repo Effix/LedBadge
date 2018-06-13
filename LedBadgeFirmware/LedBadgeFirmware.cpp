@@ -5,11 +5,8 @@
 #include "Serial.h"
 #include "I2C.h"
 #include "Eeprom.h"
-#include <util/delay_basic.h>
-#include <util/atomic.h>
 
-// Power up init
-void Setup()
+int main(void)
 {
 	// ports and io
 	ConfigureDisplay();
@@ -20,11 +17,6 @@ void Setup()
 	InitAnim();
 	
 	sei();
-}
-
-int main(void)
-{
-	Setup();
 	
 	for(;;)
     {
@@ -36,6 +28,7 @@ int main(void)
 		else if(g_CommandReg.AnimPlaying)
 		{
 			DispatchAnimCommand();
+			ResetIdleTime();
 		}
 		else
 		{

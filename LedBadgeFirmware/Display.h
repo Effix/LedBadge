@@ -82,7 +82,7 @@ struct DisplayState
 	EndOfFadeAction::Enum IdleEndFadeAction;					// what happens before the badge fades back in
 	bool BufferSelect;											// index of the current front buffer
 	unsigned char BrightnessLevel;								// current output brightness
-	unsigned char GammaTable[BufferBitPlanes];					// hold timings for the bit-planes
+	unsigned char GammaTable[BufferBitPlanes];					// hold timings for the bit-planes. Values are differential and the brightnesses are effectively a, a+b, and a+b+c.	So, in order to get a 1, 5, 9 spread, you would pass in a=1, b=4, c=4
 	unsigned char *FrontBuffer;									// current front buffer
 	unsigned char *BackBuffer;									// current back buffer
 };
@@ -117,28 +117,8 @@ void SwapBuffers();
 // Sets the overall image brightness (latches over at the end of the frame)
 void SetBrightness(unsigned char brightness);
 
-// Gets the overall image brightness (it may not be latched over yet)
-unsigned char GetBrightness();
-
-// Set the hold values for the gray scale bit-planes
-// Values are differential and the brightnesses are effectively a, a+b, and a+b+c 
-// So, in order to get a 1, 5, 9 spread, you would pass in a=1, b=4, c=4
-void SetHoldTimings(unsigned char a, unsigned char b, unsigned char c);
-
-void GetHoldTimings(unsigned char *a, unsigned char *b, unsigned char *c);
-
-// Sets the timeout parameters and behavior
-// A timeout of 255 disables idle timeouts
-void SetIdleTimeout(bool fade, EndOfFadeAction::Enum endFadeAction, unsigned char timeout);
-
-void GetIdleTimeout(bool *fade, EndOfFadeAction::Enum *endFadeAction, unsigned char *timeout);
-
 // Heartbeat to reset the idle timeout counter
 void ResetIdleTime();
-
-void SetFadeState(unsigned char counter, FadingAction::Enum action);
-
-void GetFadeState(unsigned char *counter, FadingAction::Enum *action);
 
 // Sets up the ports bound to the led drivers configures the output state, and fills the front buffer with the startup image
 // Called once at program start

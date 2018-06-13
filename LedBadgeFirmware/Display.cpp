@@ -297,45 +297,6 @@ void SetBrightness(unsigned char brightness)
 	g_DisplayReg.ChangeBrightnessRequest = true;
 }
 
-// Gets the overall image brightness (it may not be latched over yet)
-unsigned char GetBrightness()
-{
-	return g_DisplayReg.BrightnessLevel;
-}
-
-// Set the hold values for the gray scale bit-planes
-// Values are differential and the brightnesses are effectively a, a+b, and a+b+c 
-// So, in order to get a 1, 5, 9 spread, you would pass in a=1, b=4, c=4
-void SetHoldTimings(unsigned char a, unsigned char b, unsigned char c)
-{
-	g_DisplayReg.GammaTable[0] = a;
-	g_DisplayReg.GammaTable[1] = b;
-	g_DisplayReg.GammaTable[2] = c;
-}
-
-void GetHoldTimings(unsigned char *a, unsigned char *b, unsigned char *c)
-{
-	*a = g_DisplayReg.GammaTable[0];
-	*b = g_DisplayReg.GammaTable[1];
-	*c = g_DisplayReg.GammaTable[2];
-}
-
-// Sets the timeout parameters and behavior
-// A timeout of 255 disables idle timeouts
-void SetIdleTimeout(bool fade, EndOfFadeAction::Enum endFadeAction, unsigned char timeout)
-{
-	g_DisplayReg.IdleFadeEnable = fade;
-	g_DisplayReg.IdleEndFadeAction = endFadeAction;
-	g_DisplayReg.TimeoutTrigger = timeout;
-}
-
-void GetIdleTimeout(bool *fade, EndOfFadeAction::Enum *endFadeAction, unsigned char *timeout)
-{
-	*fade = g_DisplayReg.IdleFadeEnable;
-	*endFadeAction = g_DisplayReg.IdleEndFadeAction;
-	*timeout = g_DisplayReg.TimeoutTrigger;
-}
-
 // Heartbeat to reset the idle timeout counter
 void ResetIdleTime()
 {
@@ -356,18 +317,6 @@ void StartFade()
 {
 	g_DisplayReg.FadeState = FadingAction::Out;
 	g_DisplayReg.FadeCounter = g_DisplayReg.BrightnessLevel;
-}
-
-void SetFadeState(unsigned char counter, FadingAction::Enum action)
-{
-	g_DisplayReg.FadeCounter = counter;
-	g_DisplayReg.FadeState = action;
-}
-
-void GetFadeState(unsigned char *counter, FadingAction::Enum *action)
-{
-	*counter = g_DisplayReg.FadeCounter;
-	*action = g_DisplayReg.FadeState;
 }
 
 // Modifies the overall display brightness

@@ -134,7 +134,7 @@ unsigned char GetPendingSerialDataSize()
 	return count;
 }
 
-// Send along 
+// Call periodically from the main thread to send along queued up responses
 void PumpAck()
 {
 	if(g_SerialAckReadPos != g_SerialAckWritePos)
@@ -146,16 +146,24 @@ void PumpAck()
 }
 
 // Interrupt handler for incoming IO
-// Shovels data into the circular read buffer
+// Shovels data into the circular read buffer, once an entire packet is verified, it gets committed and is visible to the main thread
+// Packet format:
+//   Sentinel:    u8 (0xA5)
+//   Cookie:      u8
+//   Data Length: u8
+//   Data CRC:    u16
+//   Header CRC:  u8
+static unsigned char s_bufferData;
 ISR(UR_RX_vect, ISR_BLOCK)
 {
+	s_bufferData = UR_DATA_BUFFER;
 	switch(g_SerialState)
 	{
 		case SerialState::Waiting:
 		{
-			if(UR_DATA_BUFFER == 0xA5)
+			if(s_bufferData == 0xA5)
 			{
-				g_SerialHeaderRunningCRC = UR_DATA_BUFFER;
+				g_SerialHeaderRunningCRC = s_bufferData;
 				g_SerialPacketHeaderBufferPos = 0;
 				g_SerialState = SerialState::Header;
 			}
@@ -165,7 +173,7 @@ ISR(UR_RX_vect, ISR_BLOCK)
 		{
 			if(g_SerialPacketHeaderBufferPos == 4)
 			{
-				if(UR_DATA_BUFFER == g_SerialHeaderRunningCRC)
+				if(s_bufferData == g_SerialHeaderRunningCRC)
 				{
 					if(g_SerialPacketHeader.Header.Length)
 					{
@@ -195,8 +203,8 @@ ISR(UR_RX_vect, ISR_BLOCK)
 			}
 			else
 			{
-				g_SerialPacketHeader.Buffer[g_SerialPacketHeaderBufferPos++] = UR_DATA_BUFFER;
-				g_SerialHeaderRunningCRC = _crc8_ccitt_update(g_SerialHeaderRunningCRC, UR_DATA_BUFFER);
+				g_SerialPacketHeader.Buffer[g_SerialPacketHeaderBufferPos++] = s_bufferData;
+				g_SerialHeaderRunningCRC = _crc8_ccitt_update(g_SerialHeaderRunningCRC, s_bufferData);
 			}
 			break;
 		}
@@ -204,14 +212,14 @@ ISR(UR_RX_vect, ISR_BLOCK)
 		{
 			if(g_SerialPendingCount != ~0)
 			{
-				g_SerialBuffer[g_SerialPendingWritePos++] = UR_DATA_BUFFER;
-				g_SerialRunningCRC = _crc_ccitt_update(g_SerialRunningCRC, UR_DATA_BUFFER);
+				g_SerialBuffer[g_SerialPendingWritePos++] = s_bufferData;
+				g_SerialRunningCRC = _crc_ccitt_update(g_SerialRunningCRC, s_bufferData);
 				++g_SerialPendingCount;
 
 				// commit, if we have completed the data transfer
 				if(--g_SerialPacketHeader.Header.Length == 0)
 				{
-					if(g_SerialRunningCRC == g_SerialPacketHeader.Header.PacketCRC)
+					if(g_SerialRunningCRC == 0 || g_SerialRunningCRC == g_SerialPacketHeader.Header.PacketCRC)
 					{
 						g_SerialWritePos = g_SerialPendingWritePos;
 						g_SerialCount = g_SerialPendingCount;

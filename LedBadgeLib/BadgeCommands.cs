@@ -8,338 +8,390 @@ using System.Threading.Tasks;
 namespace LedBadgeLib
 {
     /// <summary>
-    /// Raw command code values that begin the command packets for the badge.
-    /// </summary>
-    public enum CommandCodes: byte
-    {
-        /// <summary>No action.</summary>
-        Nop,
-        /// <summary>Asks the badge to return the given cookie.</summary>
-        Ping,
-        /// <summary>Requests the version of the running firmware.</summary>
-        Version,
-        /// <summary>Swaps the front/back render targets.</summary>
-        Swap,
-        /// <summary>Requests the button state.</summary>
-        PollInputs,
-        /// <summary>Adjusts the overall output brightness of the leds.</summary>
-        SetBrightness,
-        /// <summary>Writes a single pixel value to a buffer.</summary>
-        SetPix,
-        /// <summary>Requests a single pixel value from a buffer.</summary>
-        GetPix,
-        /// <summary>Requests a block of pixels from a buffer.</summary>
-        GetPixRect,
-        /// <summary>Writes a single value to a block of pixels in a buffer.</summary>
-        SolidFill,
-        /// <summary>Sets a block of pixels in a buffer to the given data (2bpp packed).</summary>
-        Fill,
-        /// <summary>Copies a block of pixels from a location in a buffer to another.</summary>
-        Copy,
-        /// <summary>Sets the initial frame when first powered up (saves the front buffer to non-volatile memory).</summary>
-        SetPowerOnImage,
-        /// <summary>Controls the gray scale levels by setting the hold levels between the bit-planes.</summary>
-        SetHoldTimings,
-        /// <summary>Sets the idle timeout duration and behavior.</summary>
-        SetIdleTimeout,
-        /// <summary>Queries the state of the input buffer.</summary>
-        GetBufferFullness
-    }
-
-    /// <summary>
-    /// Identifiers for the command read and write locations.
-    /// </summary>
-    public enum Target: byte
-    {
-        /// <summary>The buffer not being displayed. This can be modified without seeing flicker.</summary>
-        BackBuffer,
-        /// <summary>The buffer being scanned out to the display.</summary>
-        FrontBuffer
-    }
-
-    /// <summary>
-    /// Constant metrics describing different aspects of the badge.
-    /// </summary>
-    public static class BadgeCaps
-    {
-        /// <summary>Pixels across.</summary>
-        public const int Width = 48;
-        /// <summary>Pixels tall.</summary>
-        public const int Height = 12;
-        /// <summary>Number of bits per pixel in a packed image buffer.</summary>
-        public const int BitsPerPixel = 2;
-        /// <summary>Number of colors per pixel in a packed image buffer.</summary>
-        public const int ColorValues = 4;
-        /// <summary>Number of pixels per byte in a packed image buffer.</summary>
-        public const int PixelsPerByte = 8 / BitsPerPixel;
-        /// <summary>Number of bytes for an entire row of pixels for a full screen packed image buffer.</summary>
-        public const int FrameStride = Width * BitsPerPixel / 8;
-        /// <summary>Number of bytes for a full screen packed image buffer.</summary>
-        public const int FrameSize = FrameStride * Height;
-        /// <summary>Number of bytes for an entire row of pixels for a full screen unpacked image buffer (i.e., one byte per pixel).</summary>
-        public const int IntermediateFrameStride = Width;
-        /// <summary>Number of bytes for a full screen unpacked image buffer (i.e., one byte per pixel).</summary>
-        public const int IntermediateFrameSize = IntermediateFrameStride * Height;
-    }
-
-    /// <summary>
     /// Methods to construct badge commands into a stream of data.
     /// </summary>
     public static class BadgeCommands
     {
-        /// <summary>
-        /// No action.
-        /// </summary>
-        public static void Nop(Stream stream)
+        public static void CreatePing(Stream stream, bool echo, byte cookie)
         {
-            stream.WriteByte((byte)CommandCodes.Nop << 4);
+            stream.WriteByte((byte)(((byte)CommandCodes.Ping << 4) | ((echo ? 1 : 0) << 3)));
+            stream.WriteByte(cookie);
         }
 
-        /// <summary>
-        /// Asks the badge to return the given cookie.
-        /// <param name="cookie">A 4-bit value ranging from 0 to 15.</param>
-        /// </summary>
-        public static void Ping(Stream stream, int cookie)
+        public static void CreateQuerySetting(Stream stream, SettingValue setting)
         {
-            System.Diagnostics.Debug.Assert(cookie >= 0);
-            System.Diagnostics.Debug.Assert(cookie < 16);
-
-            stream.WriteByte((byte)(((byte)CommandCodes.Ping << 4) | cookie));
+            stream.WriteByte((byte)(((byte)CommandCodes.QuerySetting << 4) | ((byte)setting & 0xF)));
+            stream.WriteByte(0);
         }
 
-        /// <summary>
-        /// Requests the version of the running firmware.
-        /// </summary>
-        public static void GetVersion(Stream stream)
+        public static void CreateUpdateBrightnessSetting(Stream stream, byte brightness)
         {
-            stream.WriteByte((byte)CommandCodes.Version << 4);
-        }
-
-        /// <summary>
-        /// Swaps the front/back render targets.
-        /// </summary>
-        public static void Swap(Stream stream)
-        {
-            stream.WriteByte((byte)CommandCodes.Swap << 4);
-        }
-
-        /// <summary>
-        /// Requests the button state.
-        /// </summary>
-        public static void PollInputs(Stream stream)
-        {
-            stream.WriteByte((byte)CommandCodes.PollInputs << 4);
-        }
-
-        /// <summary>
-        /// Adjusts the overall output brightness of the leds.
-        /// <param name="brightness">A value ranging from 0 to 255.</param>
-        /// </summary>
-        public static void SetBrightness(Stream stream, byte brightness)
-        {
-            stream.WriteByte((byte)CommandCodes.SetBrightness << 4);
+            stream.WriteByte((byte)(((byte)CommandCodes.UpdateSetting << 4) | ((byte)SettingValue.Brightness)));
             stream.WriteByte(brightness);
         }
 
-        /// <summary>
-        /// Writes a single pixel value to a buffer.
-        /// <param name="x">The horizontal location ranging from 0 to 41.</param>
-        /// <param name="y">The vertical location ranging from 0 to 11.</param>
-        /// <param name="target">The buffer to modify.</param>
-        /// <param name="color">The value (0-3) to send.</param>
-        /// </summary>
-        public static void SetPixel(Stream stream, int x, int y, Target target, int color)
+        public static void CreateUpdateHoldTimingsSetting(Stream stream, byte a, byte b, byte c)
         {
-            System.Diagnostics.Debug.Assert(x >= 0);
-            System.Diagnostics.Debug.Assert(x < BadgeCaps.Width);
-            System.Diagnostics.Debug.Assert(y >= 0);
-            System.Diagnostics.Debug.Assert(y < BadgeCaps.Height);
-            System.Diagnostics.Debug.Assert(color >= 0 && color <= 3);
-
-            stream.WriteByte((byte)((byte)CommandCodes.SetPix << 4));
-            stream.WriteByte((byte)x);
-            stream.WriteByte((byte)(((byte)y << 4) | ((byte)target << 2) | color));
+            stream.WriteByte((byte)(((byte)CommandCodes.UpdateSetting << 4) | ((byte)SettingValue.HoldTimings)));
+            stream.WriteByte((byte)((a << 4) | (b & 0xF)));
+            stream.WriteByte((byte)(c << 4));
         }
 
-        /// <summary>
-        /// Requests a single pixel value from a buffer.
-        /// <param name="x">The horizontal location ranging from 0 to 41.</param>
-        /// <param name="y">The vertical location ranging from 0 to 11.</param>
-        /// <param name="target">The buffer to query.</param>
-        /// </summary>
-        public static void GetPixel(Stream stream, int x, int y, Target target)
+        public static void CreateUpdateIdleTimeoutSetting(Stream stream, byte timeout, bool enableFade, EndofFadeAction endOfFade)
         {
-            System.Diagnostics.Debug.Assert(x >= 0);
-            System.Diagnostics.Debug.Assert(x < BadgeCaps.Width);
-            System.Diagnostics.Debug.Assert(y >= 0);
-            System.Diagnostics.Debug.Assert(y < BadgeCaps.Height);
-
-            stream.WriteByte((byte)((byte)CommandCodes.GetPix << 4));
-            stream.WriteByte((byte)x);
-            stream.WriteByte((byte)(((byte)y << 4) | ((byte)target << 2)));
+            stream.WriteByte((byte)(((byte)CommandCodes.UpdateSetting << 4) | ((byte)SettingValue.IdleTimeout)));
+            stream.WriteByte(timeout);
+            stream.WriteByte((byte)((enableFade ? 0x80 : 0) | (((byte)endOfFade & 0x3) << 5)));
         }
 
-        /// <summary>
-        /// Requests a block of pixels from a buffer.
-        /// <param name="x">The horizontal location ranging from 0 to 41.</param>
-        /// <param name="y">The vertical location ranging from 0 to 11.</param>
-        /// <param name="width">The width of the rectangle. The right edge (x + width) must not exceed the width of the badge.</param>
-        /// <param name="height">The height of the rectangle. The bottom edge (y + height) must not exceed the height of the badge.</param>
-        /// <param name="target">The buffer to query.</param>
-        /// </summary>
-        public static void GetPixelRect(Stream stream, int x, int y, int width, int height, Target target)
+        public static void CreateUpdateFadeValueSetting(Stream stream, byte fadeValue, FadingAction action)
         {
-            System.Diagnostics.Debug.Assert(x >= 0);
-            System.Diagnostics.Debug.Assert(x < BadgeCaps.Width);
-            System.Diagnostics.Debug.Assert(width > 0);
-            System.Diagnostics.Debug.Assert(x + width <= BadgeCaps.Width);
-            System.Diagnostics.Debug.Assert(y >= 0);
-            System.Diagnostics.Debug.Assert(y < BadgeCaps.Height);
-            System.Diagnostics.Debug.Assert(height > 0);
-            System.Diagnostics.Debug.Assert(y + height <= BadgeCaps.Height);
-
-            stream.WriteByte((byte)(((byte)CommandCodes.GetPixRect << 4) | ((byte)target << 2)));
-            stream.WriteByte((byte)x);
-            stream.WriteByte((byte)width);
-            stream.WriteByte((byte)((y << 4) | height));
+            stream.WriteByte((byte)(((byte)CommandCodes.UpdateSetting << 4) | ((byte)SettingValue.FadeValue)));
+            stream.WriteByte(fadeValue);
+            stream.WriteByte((byte)((byte)action << 6));
         }
 
-        /// <summary>
-        /// Writes a single value to a block of pixels in a buffer.
-        /// <param name="x">The horizontal location ranging from 0 to 41.</param>
-        /// <param name="y">The vertical location ranging from 0 to 11.</param>
-        /// <param name="width">The width of the rectangle. The right edge (x + width) must not exceed the width of the badge.</param>
-        /// <param name="height">The height of the rectangle. The bottom edge (y + height) must not exceed the height of the badge.</param>
-        /// <param name="target">The buffer to query.</param>
-        /// <param name="color">The value (0-3) to send.</param>
-        /// </summary>
-        public static void SolidFillRect(Stream stream, int x, int y, int width, int height, Target target, int color)
+        public static void CreateUpdateAnimBookmarkPosSetting(Stream stream, short position)
         {
-            System.Diagnostics.Debug.Assert(x >= 0);
-            System.Diagnostics.Debug.Assert(x < BadgeCaps.Width);
-            System.Diagnostics.Debug.Assert(width > 0);
-            System.Diagnostics.Debug.Assert(x + width <= BadgeCaps.Width);
-            System.Diagnostics.Debug.Assert(y >= 0);
-            System.Diagnostics.Debug.Assert(y < BadgeCaps.Height);
-            System.Diagnostics.Debug.Assert(height > 0);
-            System.Diagnostics.Debug.Assert(y + height <= BadgeCaps.Height);
-            System.Diagnostics.Debug.Assert(color >= 0 && color <= 3);
-
-            stream.WriteByte((byte)(((byte)CommandCodes.SolidFill << 4) | ((byte)target << 2) | color));
-            stream.WriteByte((byte)x);
-            stream.WriteByte((byte)width);
-            stream.WriteByte((byte)((y << 4) | height));
+            stream.WriteByte((byte)(((byte)CommandCodes.UpdateSetting << 4) | ((byte)SettingValue.AnimBookmarkPos)));
+            stream.WriteByte((byte)(position >> 8));
+            stream.WriteByte((byte)(position & 0xFF));
         }
 
-        /// <summary>
-        /// Sets a block of pixels in a buffer to the given data (2bpp packed).
-        /// <param name="x">The horizontal location ranging from 0 to 41.</param>
-        /// <param name="y">The vertical location ranging from 0 to 11.</param>
-        /// <param name="width">The width of the rectangle. The right edge (x + width) must not exceed the width of the badge.</param>
-        /// <param name="height">The height of the rectangle. The bottom edge (y + height) must not exceed the height of the badge.</param>
-        /// <param name="target">The buffer to query.</param>
-        /// <param name="data">The pixels to send, packed tightly. The length of this buffer must match the pixel count, packed as 2bpp and rounded up to the nearest byte.</param>
-        /// </summary>
-        public static void FillRect(Stream stream, int x, int y, int width, int height, Target target, byte[] data)
+        public static void CreateUpdateAnimReadPosSetting(Stream stream, short position)
         {
-            System.Diagnostics.Debug.Assert(x >= 0);
-            System.Diagnostics.Debug.Assert(x < BadgeCaps.Width);
-            System.Diagnostics.Debug.Assert(width > 0);
-            System.Diagnostics.Debug.Assert(x + width <= BadgeCaps.Width);
-            System.Diagnostics.Debug.Assert(y >= 0);
-            System.Diagnostics.Debug.Assert(y < BadgeCaps.Height);
-            System.Diagnostics.Debug.Assert(height > 0);
-            System.Diagnostics.Debug.Assert(y + height <= BadgeCaps.Height);
-            System.Diagnostics.Debug.Assert(data.Length == (width * height + 3) / 4);
-
-            stream.WriteByte((byte)(((byte)CommandCodes.Fill << 4) | ((byte)target << 2)));
-            stream.WriteByte((byte)x);
-            stream.WriteByte((byte)width);
-            stream.WriteByte((byte)((y << 4) | height));
-            stream.Write(data, 0, data.Length);
+            stream.WriteByte((byte)(((byte)CommandCodes.UpdateSetting << 4) | ((byte)SettingValue.AnimReadPos)));
+            stream.WriteByte((byte)(position >> 8));
+            stream.WriteByte((byte)(position & 0xFF));
         }
 
-        /// <summary>
-        /// Copies a block of pixels from a location in a buffer to another.
-        /// <param name="srcX">The horizontal location of the source rectangle ranging from 0 to 41.</param>
-        /// <param name="srcY">The vertical location of the source rectangle ranging from 0 to 11.</param>
-        /// <param name="width">The width of the rectangle. The right edge (x + width) must not exceed the width of the badge.</param>
-        /// <param name="height">The height of the rectangle. The bottom edge (y + height) must not exceed the height of the badge.</param>
-        /// <param name="dstX">The horizontal location of the destination rectangle ranging from 0 to 41.</param>
-        /// <param name="dstY">The vertical location of the destination rectangle ranging from 0 to 11.</param>
-        /// <param name="srcTarget">The buffer to read.</param>
-        /// <param name="dstTarget">The buffer to write.</param>
-        /// </summary>
-        public static void CopyRect(Stream stream, int srcX, int srcY, int width, int height, int dstX, int dstY, Target srcTarget, Target dstTarget)
+        public static void CreateUpdateAnimPlayStateSetting(Stream stream, AnimState playState)
         {
-            System.Diagnostics.Debug.Assert(srcX >= 0);
-            System.Diagnostics.Debug.Assert(srcX < BadgeCaps.Width);
-            System.Diagnostics.Debug.Assert(dstX >= 0);
-            System.Diagnostics.Debug.Assert(dstX < BadgeCaps.Width);
-            System.Diagnostics.Debug.Assert(width > 0);
-            System.Diagnostics.Debug.Assert(srcX + width <= BadgeCaps.Width);
-            System.Diagnostics.Debug.Assert(dstX + width <= BadgeCaps.Width);
-            System.Diagnostics.Debug.Assert(srcY >= 0);
-            System.Diagnostics.Debug.Assert(srcY < BadgeCaps.Height);
-            System.Diagnostics.Debug.Assert(dstY >= 0);
-            System.Diagnostics.Debug.Assert(dstY < BadgeCaps.Height);
-            System.Diagnostics.Debug.Assert(height > 0);
-            System.Diagnostics.Debug.Assert(srcY + height <= BadgeCaps.Height);
-            System.Diagnostics.Debug.Assert(dstY + height <= BadgeCaps.Height);
-
-            stream.WriteByte((byte)((byte)CommandCodes.Copy << 4));
-            stream.WriteByte((byte)srcX);
-            stream.WriteByte((byte)dstX);
-            stream.WriteByte((byte)((srcY << 4) | dstY));
-            stream.WriteByte((byte)width);
-            stream.WriteByte((byte)((height << 4) | ((byte)srcTarget << 2) | (byte)dstTarget));
+            stream.WriteByte((byte)(((byte)CommandCodes.UpdateSetting << 4) | ((byte)SettingValue.AnimPlayState)));
+            stream.WriteByte((byte)((byte)playState & 0x3));
         }
 
-        /// <summary>
-        /// Sets the initial frame when first powered up (saves the front buffer to non-volatile memory).
-        /// </summary>
-        public static void SetPowerOnImage(Stream stream)
+        public static void CreateSwap(Stream stream, bool bookmark, byte holdFrames)
         {
-            stream.WriteByte((byte)CommandCodes.SetPowerOnImage << 4);
+            stream.WriteByte((byte)(((byte)CommandCodes.Swap << 4) | (bookmark ? 0x08 : 0)));
+            stream.WriteByte(holdFrames);
         }
 
-        /// <summary>
-        /// Controls the gray scale levels by setting the hold levels between the bit-planes.
-        /// The values are cumulative, so specifying 1, 3, 4 will hold for 1, 4, 8 refresh periods.
-        /// <param name="a">Hold for darker gray values.</param>
-        /// <param name="b">Hold for lighter gray values.</param>
-        /// <param name="c">Hold for brightest values.</param>
-        /// </summary>
-        public static void SetHoldTimings(Stream stream, int a, int b, int c)
+        public static void CreateReadRect(Stream stream, Target targetBuffer, PixelFormat format, byte x, byte y, byte width, byte height)
         {
-            System.Diagnostics.Debug.Assert(a >= 1 && a <= 15);
-            System.Diagnostics.Debug.Assert(b >= 1 && b <= 15);
-            System.Diagnostics.Debug.Assert(c >= 1 && c <= 15);
-
-            stream.WriteByte((byte)(((byte)CommandCodes.SetHoldTimings << 4) | a));
-            stream.WriteByte((byte)((b << 4) | c));
+            stream.WriteByte((byte)(((byte)CommandCodes.ReadRect << 4) | (((byte)targetBuffer & 0x3) << 2) | ((byte)format & 0x3)));
+            stream.WriteByte((byte)((x << 4) | (y & 0xF)));
+            stream.WriteByte((byte)((width << 4) | (height & 0xF)));
         }
 
-        /// <summary>
-        /// Sets the idle timeout duration and behavior.
-        /// <param name="fade">True to fade out and then fade back in. False to instantly change.</param>
-        /// <param name="resetToBootImage">True to restore the power on image. False to clear to black.</param>
-        /// <param name="timeout">Number of frames to wait before resetting. A value of 255 will disable the idle behavior.</param>
-        /// </summary>
-        public static void SetIdleTimeout(Stream stream, bool fade, bool resetToBootImage, int timeout)
+        public static void CreateWriteRect(Stream stream, Target targetBuffer, PixelFormat format, byte x, byte y, byte width, byte height, out int bufferSize)
         {
-            System.Diagnostics.Debug.Assert(timeout >= 0 && timeout <= 255);
-            
-            stream.WriteByte((byte)(((byte)CommandCodes.SetIdleTimeout << 4) | ((fade ? 1 : 0) << 3) | ((resetToBootImage ? 1 : 0) << 2)));
-            stream.WriteByte((byte)timeout);
+            stream.WriteByte((byte)(((byte)CommandCodes.WriteRect << 4) | (((byte)targetBuffer & 0x3) << 2) | ((byte)format & 0x3)));
+            stream.WriteByte((byte)((x << 4) | (y & 0xF)));
+            stream.WriteByte((byte)((width << 4) | (height & 0xF)));
+            bufferSize = width * height * (int)format;
         }
 
-        /// <summary>
-        /// Queries the state of the input buffer.
-        /// </summary>
-        public static void GetBufferFullness(Stream stream)
+        public static void CreateCopyRect(Stream stream, Target sourceBuffer, Target targetBuffer, byte srcX, byte srcY, byte dstX, byte dstY, byte width, byte height)
         {
-            stream.WriteByte((byte)CommandCodes.GetBufferFullness << 4);
+            stream.WriteByte((byte)(((byte)CommandCodes.CopyRect << 4) | (((byte)sourceBuffer & 0x3) << 2) | ((byte)targetBuffer & 0x3)));
+            stream.WriteByte((byte)((srcX << 4) | (srcY & 0xF)));
+            stream.WriteByte((byte)((dstX << 4) | (dstY & 0xF)));
+            stream.WriteByte((byte)((width << 4) | (height & 0xF)));
+        }
+
+        public static void CreateFillRect(Stream stream, Target targetBuffer, byte x, byte y, byte width, byte height, Pix2x8 value)
+        {
+            stream.WriteByte((byte)(((byte)CommandCodes.FillRect << 4) | (((byte)targetBuffer & 0x3) << 2)));
+            stream.WriteByte((byte)((x << 4) | (y & 0xF)));
+            stream.WriteByte((byte)((width << 4) | (height & 0xF)));
+            stream.WriteByte((byte)(value.Value >> 8));
+            stream.WriteByte((byte)(value.Value & 0xFF));
+        }
+
+        public static void CreateReadMemory(Stream stream, short address, int numDWords)
+        {
+            if(numDWords < 1) { numDWords = 1; }
+            if(numDWords > 16) { numDWords = 16; }
+
+            stream.WriteByte((byte)(((byte)CommandCodes.ReadMemory << 4) | (numDWords - 1)));
+            stream.WriteByte((byte)(address >> 8));
+            stream.WriteByte((byte)(address & 0xFF));
+        }
+
+        public static void CreateWriteMemory(Stream stream, short address, int numDWords, out int bufferSize)
+        {
+            if(numDWords < 1) { numDWords = 1; }
+            if(numDWords > 16) { numDWords = 16; }
+            bufferSize = numDWords * 4;
+
+            stream.WriteByte((byte)(((byte)CommandCodes.WriteMemory << 4) | (numDWords - 1)));
+            stream.WriteByte((byte)(address >> 8));
+            stream.WriteByte((byte)(address & 0xFF));
+        }
+
+        public static void CreateWriteMemory(Stream stream, short address, byte[] data)
+        {
+            int bufferSize;
+            CreateWriteMemory(stream, address, data.Length / 4, out bufferSize);
+            for(int i = 0; i < bufferSize; ++i)
+            {
+                stream.WriteByte(data[i++]);
+            }
+        }
+
+        public static void CreatePlayFromBookmark(Stream stream, AnimState playState, short? bookmark = null)
+        {
+            stream.WriteByte((byte)(((byte)CommandCodes.PlayFromBookmark << 4) | (bookmark.HasValue ? 0x08 : 0) | ((byte)playState & 0x3)));
+            stream.WriteByte((byte)(bookmark.HasValue ? bookmark.Value >> 8 : 0));
+            stream.WriteByte((byte)(bookmark.HasValue ? bookmark.Value & 0xFF : 0));
+        }
+
+        public static CommandCodes GetCode(byte b)
+        {
+            return (CommandCodes)(b >> 4);
+        }
+
+        public static int GetMinCommandLength(CommandCodes command)
+        {
+            switch(command)
+            {
+                case CommandCodes.Ping:             return 2;
+                case CommandCodes.QuerySetting:     return 2;
+                case CommandCodes.UpdateSetting:    return 2;
+                case CommandCodes.Swap:             return 2;
+                case CommandCodes.ReadRect:         return 3;
+                case CommandCodes.WriteRect:        return 3;
+                case CommandCodes.CopyRect:         return 4;
+                case CommandCodes.FillRect:         return 5;
+                case CommandCodes.ReadMemory:       return 3;
+                case CommandCodes.WriteMemory:      return 3;
+                case CommandCodes.PlayFromBookmark: return 3;
+            }
+            throw new NotImplementedException("Unimplemented CommandCode length! (" + command + ")");
+        }
+
+        public static int GetSettingUpdateLength(SettingValue setting)
+        {
+            switch(setting)
+            {
+                case SettingValue.Brightness:       return 2;
+                case SettingValue.HoldTimings:      return 3;
+                case SettingValue.IdleTimeout:      return 3;
+                case SettingValue.FadeValue:        return 3;
+                case SettingValue.AnimBookmarkPos:  return 3;
+                case SettingValue.AnimReadPos:      return 3;
+                case SettingValue.AnimPlayState:    return 2;
+            }
+            throw new NotImplementedException("Unimplemented SettingValue length! (" + setting + ")");
+        }
+
+        public static int GetFullCommandLength(CommandCodes command, byte[] buffer, int offset)
+        {
+            switch(command)
+            {
+                case CommandCodes.UpdateSetting:
+                {
+                    SettingValue setting = (SettingValue)(buffer[offset] & 0xF);
+                    return GetSettingUpdateLength(setting);
+                }
+                case CommandCodes.WriteRect:
+                {
+                    Target targetBuffer;
+                    PixelFormat format;
+                    byte x, y;
+                    byte width, height;
+                    byte bufferLength;
+                    int headerLen = BadgeCommands.DecodeWriteRect(buffer, offset, out targetBuffer, out format, out x, out y, out width, out height, out bufferLength);
+                    return headerLen + bufferLength;
+                }
+                case CommandCodes.WriteMemory:
+                {
+                    byte numDWords;
+                    short address;
+                    byte bufferLength;
+                    int headerLen = BadgeCommands.DecodeWriteMemory(buffer, offset, out address, out numDWords, out bufferLength);
+                    return headerLen + bufferLength;
+                }
+                default: return GetMinCommandLength(command);
+            }
+        }
+
+        public static int DecodePing(byte[] buffer, int offset, out bool echo, out byte cookie)
+        {
+            System.Diagnostics.Debug.Assert((CommandCodes)(buffer[offset] >> 4) == CommandCodes.Ping);
+
+            echo = (buffer[offset] & 0x8) != 0;
+            cookie = buffer[offset + 1];
+            return 2;
+        }
+
+        public static int DecodeQuerySetting(byte[] buffer, int offset, out SettingValue setting)
+        {
+            System.Diagnostics.Debug.Assert((CommandCodes)(buffer[offset] >> 4) == CommandCodes.QuerySetting);
+
+            setting = (SettingValue)(buffer[offset] & 0xF);
+            return 2;
+        }
+
+        public static int DecodeUpdateBrightnessSetting(byte[] buffer, int offset, out byte brightness)
+        {
+            System.Diagnostics.Debug.Assert((CommandCodes)(buffer[offset] >> 4) == CommandCodes.UpdateSetting);
+            System.Diagnostics.Debug.Assert((SettingValue)(buffer[offset] & 0xF) == SettingValue.Brightness);
+
+            brightness = buffer[offset];
+            return 2;
+        }
+
+        public static int DecodeUpdateHoldTimingsSetting(byte[] buffer, int offset, out byte a, out byte b, out byte c)
+        {
+            System.Diagnostics.Debug.Assert((CommandCodes)(buffer[offset] >> 4) == CommandCodes.UpdateSetting);
+            System.Diagnostics.Debug.Assert((SettingValue)(buffer[offset] & 0xF) == SettingValue.HoldTimings);
+
+            a = (byte)(buffer[offset + 1] >> 4);
+            b = (byte)(buffer[offset + 1] & 0xF);
+            c = (byte)(buffer[offset + 2] >> 4);
+            return 3;
+        }
+
+        public static int DecodeUpdateIdleTimeoutSetting(byte[] buffer, int offset, out byte timeout, out bool enableFade, out EndofFadeAction endOfFade)
+        {
+            System.Diagnostics.Debug.Assert((CommandCodes)(buffer[offset] >> 4) == CommandCodes.UpdateSetting);
+            System.Diagnostics.Debug.Assert((SettingValue)(buffer[offset] & 0xF) == SettingValue.IdleTimeout);
+
+            timeout = buffer[offset + 1];
+            enableFade = (buffer[offset + 2] & 0x80) != 0;
+            endOfFade = (EndofFadeAction)((buffer[offset + 2] >> 5) & 0x3);
+            return 3;
+        }
+
+        public static int DecodeUpdateFadeValueSetting(byte[] buffer, int offset, out byte fadeValue, out FadingAction action)
+        {
+            System.Diagnostics.Debug.Assert((CommandCodes)(buffer[offset] >> 4) == CommandCodes.UpdateSetting);
+            System.Diagnostics.Debug.Assert((SettingValue)(buffer[offset] & 0xF) == SettingValue.FadeValue);
+
+            fadeValue = buffer[offset + 1];
+            action = (FadingAction)((buffer[offset + 2] >> 6) & 0x3);
+            return 3;
+        }
+
+        public static int DecodeUpdateAnimBookmarkPosSetting(byte[] buffer, int offset, out short position)
+        {
+            System.Diagnostics.Debug.Assert((CommandCodes)(buffer[offset] >> 4) == CommandCodes.UpdateSetting);
+            System.Diagnostics.Debug.Assert((SettingValue)(buffer[offset] & 0xF) == SettingValue.AnimBookmarkPos);
+
+            position = (short)((buffer[offset + 1] << 8) | buffer[offset + 2]);
+            return 3;
+        }
+
+        public static int DecodeUpdateAnimReadPosSetting(byte[] buffer, int offset, out short position)
+        {
+            System.Diagnostics.Debug.Assert((CommandCodes)(buffer[offset] >> 4) == CommandCodes.UpdateSetting);
+            System.Diagnostics.Debug.Assert((SettingValue)(buffer[offset] & 0xF) == SettingValue.AnimReadPos);
+
+            position = (short)((buffer[offset + 1] << 8) | buffer[offset + 2]);
+            return 3;
+        }
+
+        public static int DecodeUpdateAnimPlayStateSetting(byte[] buffer, int offset, out AnimState playState)
+        {
+            System.Diagnostics.Debug.Assert((CommandCodes)(buffer[offset] >> 4) == CommandCodes.UpdateSetting);
+            System.Diagnostics.Debug.Assert((SettingValue)(buffer[offset] & 0xF) == SettingValue.AnimPlayState);
+
+            playState = (AnimState)(buffer[offset + 1] & 0x3);
+            return 2;
+        }
+
+        public static int DecodeSwap(byte[] buffer, int offset, out bool bookmark, out byte holdFrames)
+        {
+            System.Diagnostics.Debug.Assert((CommandCodes)(buffer[offset] >> 4) == CommandCodes.Swap);
+
+            bookmark = (buffer[offset] & 0x8) != 0;
+            holdFrames = buffer[offset + 1];
+            return 2;
+        }
+
+        public static int DecodeReadRect(byte[] buffer, int offset, out Target targetBuffer, out PixelFormat format, out byte x, out byte y, out byte width, out byte height)
+        {
+            System.Diagnostics.Debug.Assert((CommandCodes)(buffer[offset] >> 4) == CommandCodes.ReadRect);
+
+            targetBuffer = (Target)((buffer[offset] >> 2) & 0x3);
+            format = (PixelFormat)(buffer[offset] & 0x3);
+            x = (byte)(buffer[offset + 1] >> 4);
+            y = (byte)(buffer[offset + 1] & 0xF);
+            width = (byte)(buffer[offset + 2] >> 4);
+            height = (byte)(buffer[offset + 2] & 0xF);
+            return 3;
+        }
+
+        public static int DecodeWriteRect(byte[] buffer, int offset, out Target targetBuffer, out PixelFormat format, out byte x, out byte y, out byte width, out byte height, out byte bufferLength)
+        {
+            System.Diagnostics.Debug.Assert((CommandCodes)(buffer[offset] >> 4) == CommandCodes.WriteRect);
+
+            targetBuffer = (Target)((buffer[offset] >> 2) & 0x3);
+            format = (PixelFormat)(buffer[offset] & 0x3);
+            x = (byte)(buffer[offset + 1] >> 4);
+            y = (byte)(buffer[offset + 1] & 0xF);
+            width = (byte)(buffer[offset + 2] >> 4);
+            height = (byte)(buffer[offset + 2] & 0xF);
+            bufferLength = (byte)(width * height * ((int)format + 1));
+            return 3;
+        }
+
+        public static int DecodeCopyRect(byte[] buffer, int offset, out Target sourceBuffer, out Target targetBuffer, out byte srcX, out byte srcY, out byte dstX, out byte dstY, out byte width, out byte height)
+        {
+            System.Diagnostics.Debug.Assert((CommandCodes)(buffer[offset] >> 4) == CommandCodes.CopyRect);
+
+            sourceBuffer = (Target)((buffer[offset] >> 2) & 0x3);
+            targetBuffer = (Target)(buffer[offset] & 0x3);
+            srcX = (byte)(buffer[offset + 1] >> 4);
+            srcY = (byte)(buffer[offset + 1] & 0xF);
+            dstX = (byte)(buffer[offset + 2] >> 4);
+            dstY = (byte)(buffer[offset + 2] & 0xF);
+            width = (byte)(buffer[offset + 3] >> 4);
+            height = (byte)(buffer[offset + 3] & 0xF);
+            return 4;
+        }
+
+        public static int DecodeFillRect(byte[] buffer, int offset, out Target targetBuffer, out byte x, out byte y, out byte width, out byte height, out Pix2x8 value)
+        {
+            System.Diagnostics.Debug.Assert((CommandCodes)(buffer[offset] >> 4) == CommandCodes.FillRect);
+
+            targetBuffer = (Target)((buffer[offset] >> 2) & 0x3);
+            x = (byte)(buffer[offset + 1] >> 4);
+            y = (byte)(buffer[offset + 1] & 0xF);
+            width = (byte)(buffer[offset + 2] >> 4);
+            height = (byte)(buffer[offset + 2] & 0xF);
+            value = new Pix2x8((ushort)((buffer[offset + 3] << 8) | buffer[offset + 4]));
+            return 5;
+        }
+
+        public static int DecodeReadMemory(byte[] buffer, int offset, out short address, out byte numDWords)
+        {
+            System.Diagnostics.Debug.Assert((CommandCodes)(buffer[offset] >> 4) == CommandCodes.ReadMemory);
+
+            numDWords = (byte)((buffer[offset] & 0xF) + 1);
+            address = (short)((buffer[offset + 1] << 8) | buffer[offset + 2]);
+            return 3;
+        }
+
+        public static int DecodeWriteMemory(byte[] buffer, int offset, out short address, out byte numDWords, out byte bufferLength)
+        {
+            System.Diagnostics.Debug.Assert((CommandCodes)(buffer[offset] >> 4) == CommandCodes.WriteMemory);
+
+            numDWords = (byte)((buffer[offset] & 0xF) + 1);
+            address = (short)((buffer[offset + 1] << 8) | buffer[offset + 2]);
+            bufferLength = (byte)(numDWords * 4);
+            return 3;
+        }
+
+        public static int DecodePlayFromBookmark(byte[] buffer, int offset, out AnimState playState, out short? bookmark)
+        {
+            System.Diagnostics.Debug.Assert((CommandCodes)(buffer[offset] >> 4) == CommandCodes.PlayFromBookmark);
+
+            playState = (AnimState)(buffer[offset] & 0x3);
+            bookmark = ((buffer[offset] & 0x08) != 0) ? (short)((buffer[offset + 1] << 8) | buffer[offset + 2]) : (short?)null;
+            return 3;
         }
     }
 }
