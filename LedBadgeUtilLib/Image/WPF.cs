@@ -79,21 +79,25 @@ namespace LedBadgeLib
             target.WritePixels(new Int32Rect(0, 0, width, height), intermediateImage, width, 0);
         }
 
-        public static BitmapSource ImageFromPackedBuffer(byte[] packedBuffer, int offset, bool rotate, int width, int height)
+        public static BitmapSource ImageFromPackedBuffer(byte[] packedBuffer, int offset, bool rotate, int width, int height, PixelFormat pixelFormat)
         {
-            var image = new WriteableBitmap(width, height, 96, 96, PixelFormats.Gray8, null);
-            ImageFromPackedBuffer(image, packedBuffer, offset, rotate, width, height);
-            return image;
+            if(width > 0 && height > 0)
+            {
+                var image = new WriteableBitmap(width, height, 96, 96, PixelFormats.Gray8, null);
+                ImageFromPackedBuffer(image, packedBuffer, offset, rotate, width, height, pixelFormat);
+                return image;
+            }
+            return null;
         }
 
-        public static void ImageFromPackedBuffer(WriteableBitmap target, byte[] packedBuffer, int offset, bool rotate, int width, int height, byte[] tempIntermediate = null)
+        public static void ImageFromPackedBuffer(WriteableBitmap target, byte[] packedBuffer, int offset, bool rotate, int width, int height, PixelFormat pixelFormat, byte[] tempIntermediate = null)
         {
             var intermediateImage = tempIntermediate ?? new byte[width * height];
-            BadgeImage.PackedBufferToIntermediateImage(packedBuffer, intermediateImage, offset, rotate);
+            BadgeImage.PackedBufferToIntermediateImage(packedBuffer, intermediateImage, pixelFormat, offset, rotate);
             ImageFromIntermediate(target, intermediateImage, width, height);
         }
 
-        public static FrameworkElement MakeSingleLineItem(string message, bool halfSize = false, bool fullWidth = true)
+        public static FrameworkElement MakeSingleLineItem(BadgeCaps device, string message, bool halfSize = false, bool fullWidth = true)
         {
             var size = halfSize ? 7 : 12;
             var font = new FontFamily(halfSize ? "Lucida Console" : "Arial");
@@ -109,7 +113,7 @@ namespace LedBadgeLib
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
                 TextAlignment = System.Windows.TextAlignment.Center,
                 Foreground = color,
-                MinWidth = !fullWidth || halfSize ? 0 : BadgeCaps.Width,
+                MinWidth = !fullWidth || halfSize ? 0 : device.Width,
                 UseLayoutRounding = true,
                 SnapsToDevicePixels = true
             };
@@ -120,10 +124,10 @@ namespace LedBadgeLib
             return element;
         }
 
-        public static FrameworkElement MakeDoubleLineItem(string message1, string message2, bool fullWidth = true)
+        public static FrameworkElement MakeDoubleLineItem(BadgeCaps device, string message1, string message2, bool fullWidth = true)
         {
-            var element1 = MakeSingleLineItem(message1, halfSize: true, fullWidth: fullWidth);
-            var element2 = MakeSingleLineItem(message2, halfSize: true, fullWidth: fullWidth);
+            var element1 = MakeSingleLineItem(device, message1, halfSize: true, fullWidth: fullWidth);
+            var element2 = MakeSingleLineItem(device, message2, halfSize: true, fullWidth: fullWidth);
 
             var element = new StackPanel();
             element.Children.Add(element1);
@@ -132,16 +136,16 @@ namespace LedBadgeLib
             return element;
         }
 
-        public static FrameworkElement MakeSplitLineItem(string message1, string message2, string message3, bool fullWidth = true)
+        public static FrameworkElement MakeSplitLineItem(BadgeCaps device, string message1, string message2, string message3, bool fullWidth = true)
         {
-            var element1 = MakeSingleLineItem(message1, fullWidth: false);
-            var element2 = MakeDoubleLineItem(message2, message3, fullWidth: false);
+            var element1 = MakeSingleLineItem(device, message1, fullWidth: false);
+            var element2 = MakeDoubleLineItem(device, message2, message3, fullWidth: false);
 
             var element = new StackPanel() 
             { 
                 Orientation = Orientation.Horizontal,
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
-                MinWidth = !fullWidth ? 0 : BadgeCaps.Width
+                MinWidth = !fullWidth ? 0 : device.Width
             };
             element.Children.Add(element1);
             element.Children.Add(element2);
@@ -149,9 +153,9 @@ namespace LedBadgeLib
             return element;
         }
 
-        public static MessageQueueItem MakeQueuedItem(FrameworkElement element)
+        public static MessageQueueItem MakeQueuedItem(BadgeCaps device, FrameworkElement element)
         {
-            return new MessageQueueItem(new WpfVisual(element));
+            return new MessageQueueItem(new WpfVisual(device, element));
         }
     }
 }

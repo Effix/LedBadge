@@ -18,7 +18,7 @@ namespace LedBadgeLib
             ClipWidth = width;
             ClipHeight = height;
 
-            m_cachedIntermediate = new BadgeRenderTarget(width, height);
+            m_cachedIntermediate = new BadgeRenderTarget(ClipWidth, ClipHeight, PixelFormat.TwoBits);
             if(enableBlend)
             {
                 m_alphaMask = new byte[m_cachedIntermediate.IntermediateImage.Length];
@@ -30,7 +30,7 @@ namespace LedBadgeLib
             ClipWidth = width;
             ClipHeight = height;
 
-            m_cachedIntermediate = new BadgeRenderTarget(ClipWidth, ClipHeight);
+            m_cachedIntermediate = new BadgeRenderTarget(ClipWidth, ClipHeight, PixelFormat.TwoBits);
             bake.Render(m_cachedIntermediate, 0, 0);
         }
 
@@ -41,7 +41,7 @@ namespace LedBadgeLib
         public int ClipWidth { get; set; }
         public int ClipHeight { get; set; }
 
-        public int Width { get { return m_cachedIntermediate.Width; } }
+        public int Width { get { return m_cachedIntermediate.WidthInPixels; } }
         public int Height { get { return m_cachedIntermediate.Height; } }
         public byte[] IntermediateImage { get { return m_cachedIntermediate.IntermediateImage; } }
         public byte[] AlphaMask { get { return m_alphaMask; } }
@@ -56,15 +56,15 @@ namespace LedBadgeLib
             if(EnableBlend)
             {
                 BadgeImage.Blit(
-                    rt.IntermediateImage, rt.Width, rt.Height,
-                    m_cachedIntermediate.IntermediateImage, m_alphaMask, m_cachedIntermediate.Width, m_cachedIntermediate.Height,
+                    rt.IntermediateImage, rt.WidthInPixels, rt.Height,
+                    m_cachedIntermediate.IntermediateImage, m_alphaMask, m_cachedIntermediate.WidthInPixels, m_cachedIntermediate.Height,
                     parentRenderX + RenderX, parentRenderY + RenderY, ClipX, ClipY, ClipWidth, ClipHeight);
             }
             else
             {
                 BadgeImage.Blit(
-                    rt.IntermediateImage, rt.Width, rt.Height,
-                    m_cachedIntermediate.IntermediateImage, m_cachedIntermediate.Width, m_cachedIntermediate.Height,
+                    rt.IntermediateImage, rt.WidthInPixels, rt.Height,
+                    m_cachedIntermediate.IntermediateImage, m_cachedIntermediate.WidthInPixels, m_cachedIntermediate.Height,
                     parentRenderX + RenderX, parentRenderY + RenderY, ClipX, ClipY, ClipWidth, ClipHeight);
             }
         }

@@ -21,8 +21,9 @@ namespace LedBadgeLib
 
     public class MessageQueue
     {
-        public MessageQueue()
+        public MessageQueue(BadgeCaps device)
         {
+            Device = device;
             SyncRoot = new object();
         }
 
@@ -70,6 +71,7 @@ namespace LedBadgeLib
             new List<MessageQueueItem>() 
         };
 
+        public BadgeCaps Device { get; private set; }
         public object SyncRoot { get; private set; }
     }
 }

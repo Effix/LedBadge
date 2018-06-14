@@ -13,8 +13,11 @@ namespace LedBadgeLib
 {
     public class WpfVisual: IBadgeVisual
     {
-        public WpfVisual(FrameworkElement element, int defaultWidth = BadgeCaps.Width, int defaultHeight = BadgeCaps.Height, bool dither = false, bool enableBlend = false)
+        public WpfVisual(BadgeCaps device, FrameworkElement element, int defaultWidth = -1, int defaultHeight = -1, bool dither = false, bool enableBlend = false)
         {
+            if(defaultWidth <= 0) { defaultWidth = device.Width; }
+            if(defaultHeight <= 0) { defaultHeight = device.Height; }
+
             Element = element;
             Element.Measure(new Size(defaultWidth, defaultHeight));
             Element.Arrange(new Rect(0, 0, defaultWidth, defaultHeight));
@@ -25,7 +28,7 @@ namespace LedBadgeLib
             Dither = dither;
             EnableBlend = enableBlend;
 
-            m_cachedIntermediate = new BadgeRenderTarget(ClipWidth, ClipHeight);
+            m_cachedIntermediate = new BadgeRenderTarget(ClipWidth, ClipHeight, PixelFormat.TwoBits);
             m_renderTarget = new RenderTargetBitmap(ClipWidth, ClipHeight, 96, 96, PixelFormats.Pbgra32);
 
             Update(0); // To avoid remeasuring on a background thread
@@ -79,15 +82,15 @@ namespace LedBadgeLib
             if(EnableBlend)
             {
                 BadgeImage.Blit(
-                    rt.IntermediateImage, rt.Width, rt.Height,
-                    m_cachedIntermediate.IntermediateImage, m_alphaMask, m_cachedIntermediate.Width, m_cachedIntermediate.Height,
+                    rt.IntermediateImage, rt.WidthInPixels, rt.Height,
+                    m_cachedIntermediate.IntermediateImage, m_alphaMask, m_cachedIntermediate.WidthInPixels, m_cachedIntermediate.Height,
                     parentRenderX + RenderX, parentRenderY + RenderY, ClipX, ClipY, ClipWidth, ClipHeight);
             }
             else
             {
                 BadgeImage.Blit(
-                    rt.IntermediateImage, rt.Width, rt.Height,
-                    m_cachedIntermediate.IntermediateImage, m_cachedIntermediate.Width, m_cachedIntermediate.Height,
+                    rt.IntermediateImage, rt.WidthInPixels, rt.Height,
+                    m_cachedIntermediate.IntermediateImage, m_cachedIntermediate.WidthInPixels, m_cachedIntermediate.Height,
                     parentRenderX + RenderX, parentRenderY + RenderY, ClipX, ClipY, ClipWidth, ClipHeight);
             }
         }
@@ -107,12 +110,12 @@ namespace LedBadgeLib
                     {
                         m_alphaMask = new byte[m_cachedIntermediate.IntermediateImage.Length];
                     }
-                    WPF.Read32BitImage(m_cachedIntermediate.IntermediateImage, m_alphaMask, m_renderTarget, 0, 0, m_cachedIntermediate.Width, m_cachedIntermediate.Height);
+                    WPF.Read32BitImage(m_cachedIntermediate.IntermediateImage, m_alphaMask, m_renderTarget, 0, 0, m_cachedIntermediate.WidthInPixels, m_cachedIntermediate.Height);
                 }
                 else
                 {
                     m_alphaMask = null;
-                    WPF.Read32BitImage(m_cachedIntermediate.IntermediateImage, m_renderTarget, 0, 0, m_cachedIntermediate.Width, m_cachedIntermediate.Height);
+                    WPF.Read32BitImage(m_cachedIntermediate.IntermediateImage, m_renderTarget, 0, 0, m_cachedIntermediate.WidthInPixels, m_cachedIntermediate.Height);
                     if(Dither)
                     {
                         m_cachedIntermediate.DitherImage();

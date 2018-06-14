@@ -29,7 +29,7 @@ namespace LedBadgeLib
         }
 
         /// <summary>Number of pixels packed into one block.</summary>
-        public static int PixelsPerBitPlane = 8;
+        public static int PixelsPerBlockBitPlane = 8;
         /// <summary>Number of bits per pixel in an intermediate image buffer.</summary>
         public static int IntermediateBitsPerPixel = 8;
 

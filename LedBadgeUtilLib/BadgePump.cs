@@ -51,6 +51,7 @@ namespace LedBadgeLib
         public bool Dither { get; set; }
         public byte Brightness { get; set; }
         public bool Connected { get { return m_connection != null; } }
+        public BadgeCaps Device { get { return Connected ? m_connection.Device : null; } }
         public bool Running { get; private set; }
         public bool UseFrameBuffer { get; set; }
         public bool RotateFrame { get; set; }
@@ -66,8 +67,8 @@ namespace LedBadgeLib
         int m_prevBrightness = -1;
         IBadgeResponseDispatcher m_responseDispatcher;
         BadgeConnection m_connection;
-        ConcurrentQueue<MemoryStream> m_pendingCommands = new ConcurrentQueue<MemoryStream>();
-        BadgeRenderTarget m_renderTarget = new BadgeRenderTarget();
+        ConcurrentQueue<Tuple<MemoryStream, bool>> m_pendingCommands = new ConcurrentQueue<Tuple<MemoryStream, bool>>();
+        BadgeRenderTarget m_renderTarget;
         ManualResetEvent m_cancel = new ManualResetEvent(false);
         ManualResetEvent m_enable = new ManualResetEvent(false);
         Stopwatch m_timer = new Stopwatch();
@@ -101,12 +102,12 @@ namespace LedBadgeLib
             }
         }
 
-        public void Connect(string port)
+        public void Connect(string port, int baud)
         {
             if(!Connected)
             {
                 m_prevBrightness = -1;
-                m_connection = new BadgeConnection(port, m_responseDispatcher);
+                m_connection = new BadgeConnection(port, baud, m_responseDispatcher);
             }
             else
             {
@@ -114,9 +115,9 @@ namespace LedBadgeLib
             }
         }
 
-        public void EnqueueCommandsAsync(MemoryStream commands)
+        public void EnqueueCommandsAsync(MemoryStream commands, bool ensureDelivery)
         {
-            m_pendingCommands.Enqueue(commands);
+            m_pendingCommands.Enqueue(Tuple.Create(commands, ensureDelivery));
         }
 
         void RunFrame()
@@ -125,31 +126,43 @@ namespace LedBadgeLib
             if(m_prevBrightness != Brightness)
             {
                 m_prevBrightness = Brightness;
-                BadgeCommands.SetBrightness(commands, Brightness);
+                BadgeCommands.CreateUpdateBrightnessSetting(commands, Brightness);
             }
 
             if(UseFrameBuffer)
             {
-                var render = RenderFrame;
-                if(render != null)
+                BadgeCaps device = Device;
+                if(device != null && (m_renderTarget == null || !m_renderTarget.SameDimentions(device.Width, device.Height, device.BitsPerPixel == 1 ? PixelFormat.OneBit : PixelFormat.TwoBits)))
                 {
-                    render(this, new BadgeFrameEventArgs(m_renderTarget));
+                    m_renderTarget = new BadgeRenderTarget(device.Width, device.Height, device.BitsPerPixel == 1 ? PixelFormat.OneBit : PixelFormat.TwoBits);
                 }
 
-                if(Dither)
+                if(m_renderTarget != null)
                 {
-                    m_renderTarget.DitherImage();
-                }
-                m_renderTarget.PackBuffer(RotateFrame);
+                    var render = RenderFrame;
+                    if(render != null)
+                    {
+                        render(this, new BadgeFrameEventArgs(m_renderTarget));
+                    }
 
-                var ready = FrameReady;
-                if(ready != null)
-                {
-                    ready(this, new BadgeFrameEventArgs(m_renderTarget));
-                }
+                    if(Dither)
+                    {
+                        m_renderTarget.DitherImage();
+                    }
+                    m_renderTarget.PackBuffer(RotateFrame);
 
-                BadgeCommands.FillRect(commands, 0, 0, m_renderTarget.Width, m_renderTarget.Height, Target.BackBuffer, m_renderTarget.PackedBuffer);
-                BadgeCommands.Swap(commands);
+                    var ready = FrameReady;
+                    if(ready != null)
+                    {
+                        ready(this, new BadgeFrameEventArgs(m_renderTarget));
+                    }
+
+                    int writeBufferLength;
+                    BadgeCommands.CreateWriteRect(commands, Target.BackBuffer, m_renderTarget.PackedFormat,
+                        0, 0, (byte)m_renderTarget.WidthInBlocks, (byte)m_renderTarget.Height, out writeBufferLength);
+                    commands.Write(m_renderTarget.PackedBuffer, 0, m_renderTarget.PackedBuffer.Length);
+                    BadgeCommands.CreateSwap(commands, false, 0);
+                }
             }
             else
             {
@@ -173,23 +186,23 @@ namespace LedBadgeLib
         {
             if(Connected)
             {
-                MemoryStream additionalCommands;
+                Tuple<MemoryStream, bool> additionalCommands;
                 while(m_pendingCommands.TryDequeue(out additionalCommands))
                 {
-                    if(additionalCommands.Length > 0)
+                    if(additionalCommands.Item1.Length > 0)
                     {
-                        m_connection.Send(additionalCommands, false);
+                        m_connection.Send(additionalCommands.Item1, additionalCommands.Item2, false);
                     }
                 }
 
                 if(commands.Length > 0)
                 {
-                    m_connection.Send(commands, true);
+                    m_connection.Send(commands, false, true);
                 }
             }
             else
             {
-                MemoryStream additionalCommands;
+                Tuple<MemoryStream, bool> additionalCommands;
                 while(m_pendingCommands.TryDequeue(out additionalCommands))
                 {
                 }

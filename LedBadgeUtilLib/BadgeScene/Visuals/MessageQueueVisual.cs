@@ -10,11 +10,11 @@ namespace LedBadgeLib
 {
     public class MessageQueueVisual: IBadgeVisual
     {
-        public MessageQueueVisual(MessageQueue queue = null)
+        public MessageQueueVisual(BadgeCaps device, MessageQueue queue = null)
         {
-            Queue = queue ?? new MessageQueue();
-            ClipWidth = BadgeCaps.Width;
-            ClipHeight = BadgeCaps.Height;
+            Queue = queue ?? new MessageQueue(device);
+            ClipWidth = device.Width;
+            ClipHeight = device.Height;
         }
 
         public int RenderX { get; set; }

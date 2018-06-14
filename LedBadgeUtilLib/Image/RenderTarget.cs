@@ -8,30 +8,41 @@ namespace LedBadgeLib
 {
     public class BadgeRenderTarget
     {
-        public BadgeRenderTarget(int width = BadgeCaps.Width, int height = BadgeCaps.Height, byte[] intermediateImage = null)
+        public BadgeRenderTarget(int widthInPixels, int height, PixelFormat packedFormat, byte[] intermediateImage = null)
         {
-            Width = width;
+            WidthInBlocks = BadgeImage.CalculatePackedPixelBlocks(widthInPixels);
+            WidthInPixels = WidthInBlocks * BadgeCaps.PixelsPerBlockBitPlane;
             Height = height;
-            IntermediateImage = intermediateImage ?? new byte[width * height];
+            PackedFormat = packedFormat;
+            IntermediateImage = intermediateImage ?? new byte[WidthInPixels * height];
         }
 
         public void DitherImage()
         {
-            BadgeImage.DitherImage(IntermediateImage, Width, Height);
+            BadgeImage.DitherImage(IntermediateImage, WidthInPixels, Height);
         }
 
         public void PackBuffer(bool rotate)
         {
             if(PackedBuffer == null)
             {
-                System.Diagnostics.Debug.Assert((Width & 0x3) == 0);
-                PackedBuffer = new byte[(Width * BadgeCaps.BitsPerPixel / 8) * Height];
+                PackedBuffer = new byte[BadgeImage.CalculatePackedBufferSize(WidthInPixels, Height, PackedFormat)];
             }
-            BadgeImage.IntermediateImagetoPackedBuffer(IntermediateImage, PackedBuffer, 0, rotate);
+            BadgeImage.IntermediateImagetoPackedBuffer(IntermediateImage, PackedBuffer, PackedFormat, 0, rotate);
         }
 
-        public int Width { get; private set; }
+        public bool SameDimentions(int widthInPixels, int height, PixelFormat packedFormat)
+        {
+            return
+                PackedFormat == packedFormat &&
+                Height == height &&
+                WidthInBlocks == BadgeImage.CalculatePackedPixelBlocks(widthInPixels);
+        }
+
+        public int WidthInBlocks { get; private set; }
+        public int WidthInPixels { get; private set; }
         public int Height { get; private set; }
+        public PixelFormat PackedFormat { get; private set; }
         public byte[] IntermediateImage { get; set; }
         public byte[] PackedBuffer { get; set; }
     }

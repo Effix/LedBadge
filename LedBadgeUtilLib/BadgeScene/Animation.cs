@@ -89,6 +89,7 @@ namespace LedBadgeLib
     public class SlidingTransition: ITransitionController
     {
         public SlidingTransition(
+            BadgeCaps device, 
             MessageQueueItem item1,
             MessageQueueItem item2,
             SlidingDirection direction,
@@ -103,13 +104,13 @@ namespace LedBadgeLib
             Speed = speed;
             if(IsVertical)
             {
-                Padding = padding.HasValue ? padding.Value : BadgeCaps.Height;
+                Padding = padding.HasValue ? padding.Value : device.Height;
                 m_startOffset = Item1.Element.RenderY;
                 m_distance = AnimHelper.Round(Item1.Element.ClipHeight + m_startOffset + Padding);
             }
             else
             {
-                Padding = padding.HasValue ? padding.Value : BadgeCaps.Width;
+                Padding = padding.HasValue ? padding.Value : device.Width;
                 m_startOffset = Item1.Element.RenderX;
                 m_distance = AnimHelper.Round(Item1.Element.ClipWidth + m_startOffset + Padding);
             }
@@ -186,13 +187,12 @@ namespace LedBadgeLib
         {
             CurrentTime += dt;
         }
-
-        float m_currTime;
     }
 
     public class SlidingPosition: IDisplayController
     {
         public SlidingPosition(
+            BadgeCaps device, 
             MessageQueueItem item,
             SlidingDirection direction,
             Easing ease,
@@ -206,11 +206,11 @@ namespace LedBadgeLib
             Padding = padding;
             if(IsVertical)
             {
-                m_distance = Item.Element.ClipHeight - BadgeCaps.Height;
+                m_distance = Item.Element.ClipHeight - device.Height;
             }
             else
             {
-                m_distance = Item.Element.ClipWidth - BadgeCaps.Width;
+                m_distance = Item.Element.ClipWidth - device.Width;
             }
             m_distance += 2 * Padding;
             m_startOffset = Padding;
@@ -267,6 +267,7 @@ namespace LedBadgeLib
     public class SlidingPosition2D: IDisplayController
     {
         public SlidingPosition2D(
+            BadgeCaps device, 
             MessageQueueItem item,
             float directionX,
             float directionY,
@@ -282,8 +283,8 @@ namespace LedBadgeLib
             Speed = speed;
             PaddingX = paddingX;
             PaddingY = paddingY;
-            m_distanceX = (Item.Element.ClipWidth - BadgeCaps.Width) + 2 * PaddingX;
-            m_distanceY = (Item.Element.ClipHeight - BadgeCaps.Height) + 2 * PaddingY;
+            m_distanceX = (Item.Element.ClipWidth - device.Width) + 2 * PaddingX;
+            m_distanceY = (Item.Element.ClipHeight - device.Height) + 2 * PaddingY;
             m_startOffsetX = PaddingX;
             m_startOffsetY = PaddingY;
             m_currOffsetX = 0;

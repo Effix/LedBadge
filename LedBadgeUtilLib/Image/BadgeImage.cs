@@ -8,9 +8,19 @@ namespace LedBadgeLib
 {
     public static class BadgeImage
     {
-        public static int CalculatePackedBufferSize(int width, int height)
+        public static int CalculatePackedPixelBlocks(int widthInPixels)
         {
-            return (width * height + BadgeCaps.PixelsPerByte - 1) / BadgeCaps.PixelsPerByte;
+            return (widthInPixels + BadgeCaps.PixelsPerBlockBitPlane - 1) / BadgeCaps.PixelsPerBlockBitPlane;
+        }
+
+        public static int CalculatePackedPixelStride(int widthInPixels, PixelFormat pixelFormat)
+        {
+            return CalculatePackedPixelBlocks(widthInPixels) * (pixelFormat == PixelFormat.TwoBits ? 2 : 1);
+        }
+
+        public static int CalculatePackedBufferSize(int widthInPixels, int height, PixelFormat pixelFormat)
+        {
+            return CalculatePackedPixelStride(widthInPixels, pixelFormat) * height;
         }
 
         public static byte ToGray(int r, int g, int b)
@@ -34,73 +44,136 @@ namespace LedBadgeLib
             }
         }
 
-        public static byte Pack4RGBPix(int p0, int p1, int p2, int p3)
+        public static Pix2x8 Pack8GrayPix(byte p0, byte p1, byte p2, byte p3, byte p4, byte p5, byte p6, byte p7)
         {
-            return Pack4GrayPix(
-                ToGray((p0 >> 16) & 0xFF, (p0 >> 8) & 0xFF, (p0 >> 0) & 0xFF),
-                ToGray((p1 >> 16) & 0xFF, (p1 >> 8) & 0xFF, (p1 >> 0) & 0xFF),
-                ToGray((p2 >> 16) & 0xFF, (p2 >> 8) & 0xFF, (p2 >> 0) & 0xFF),
-                ToGray((p3 >> 16) & 0xFF, (p3 >> 8) & 0xFF, (p3 >> 0) & 0xFF));
+            p0 = SrgbGrayToPix(p0);
+            p1 = SrgbGrayToPix(p1);
+            p2 = SrgbGrayToPix(p2);
+            p3 = SrgbGrayToPix(p3);
+            p4 = SrgbGrayToPix(p4);
+            p5 = SrgbGrayToPix(p5);
+            p6 = SrgbGrayToPix(p6);
+            p7 = SrgbGrayToPix(p7);
+
+            ushort value = 0;
+            
+            value |= (ushort)((p0 & 0x01) << 0);
+            value |= (ushort)((p1 & 0x01) << 1);
+            value |= (ushort)((p2 & 0x01) << 2);
+            value |= (ushort)((p3 & 0x01) << 3);
+            value |= (ushort)((p4 & 0x01) << 4);
+            value |= (ushort)((p5 & 0x01) << 5);
+            value |= (ushort)((p6 & 0x01) << 6);
+            value |= (ushort)((p7 & 0x01) << 7);
+
+            value |= (ushort)((p0 & 0x02) << 7);
+            value |= (ushort)((p1 & 0x02) << 8);
+            value |= (ushort)((p2 & 0x02) << 9);
+            value |= (ushort)((p3 & 0x02) << 10);
+            value |= (ushort)((p4 & 0x02) << 11);
+            value |= (ushort)((p5 & 0x02) << 12);
+            value |= (ushort)((p6 & 0x02) << 13);
+            value |= (ushort)((p7 & 0x02) << 14);
+
+            return new Pix2x8(value);
         }
 
-        public static byte Pack4GrayPix(byte p0, byte p1, byte p2, byte p3)
+        public static void Unpack8GrayPix(Pix2x8 pix, out byte p0, out byte p1, out byte p2, out byte p3, out byte p4, out byte p5, out byte p6, out byte p7)
         {
-            byte dst = 0;
-            dst |= (byte)(SrgbGrayToPix(p0) << 0);
-            dst |= (byte)(SrgbGrayToPix(p1) << 2);
-            dst |= (byte)(SrgbGrayToPix(p2) << 4);
-            dst |= (byte)(SrgbGrayToPix(p3) << 6);
-            return dst;
+            p0 = BadgeImage.PixToSrgbGray((byte)(((pix.Value & 0x0100) >>  7) | ((pix.Value & 0x01) >> 0)));
+            p1 = BadgeImage.PixToSrgbGray((byte)(((pix.Value & 0x0200) >>  8) | ((pix.Value & 0x02) >> 1)));
+            p2 = BadgeImage.PixToSrgbGray((byte)(((pix.Value & 0x0400) >>  9) | ((pix.Value & 0x04) >> 2)));
+            p3 = BadgeImage.PixToSrgbGray((byte)(((pix.Value & 0x0800) >> 10) | ((pix.Value & 0x08) >> 3)));
+            p4 = BadgeImage.PixToSrgbGray((byte)(((pix.Value & 0x1000) >> 11) | ((pix.Value & 0x10) >> 4)));
+            p5 = BadgeImage.PixToSrgbGray((byte)(((pix.Value & 0x2000) >> 12) | ((pix.Value & 0x20) >> 5)));
+            p6 = BadgeImage.PixToSrgbGray((byte)(((pix.Value & 0x4000) >> 13) | ((pix.Value & 0x40) >> 6)));
+            p7 = BadgeImage.PixToSrgbGray((byte)(((pix.Value & 0x8000) >> 14) | ((pix.Value & 0x80) >> 7)));
         }
 
-        public static void IntermediateImagetoPackedBuffer(byte[] intermediateImage, byte[] packedBuffer, int offset, bool rotate)
+        public static void IntermediateImagetoPackedBuffer(byte[] intermediateImage, byte[] packedBuffer, PixelFormat pixelFormat, int offset, bool rotate)
         {
             int packedI = offset;
             if(rotate)
             {
-                for(int p = intermediateImage.Length - 4; p >= 0; ++packedI, p -= 4)
+                for(int p = intermediateImage.Length - 8; p >= 0; p -= 8)
                 {
-                    packedBuffer[packedI] = BadgeImage.Pack4GrayPix(
+                    var pix = BadgeImage.Pack8GrayPix(
+                        intermediateImage[p + 7],
+                        intermediateImage[p + 6],
+                        intermediateImage[p + 5],
+                        intermediateImage[p + 4],
                         intermediateImage[p + 3],
                         intermediateImage[p + 2],
                         intermediateImage[p + 1],
                         intermediateImage[p + 0]);
+
+                    packedBuffer[packedI++] = (byte)(pix.Value >> 8);
+                    if(pixelFormat == PixelFormat.TwoBits)
+                    {
+                        packedBuffer[packedI++] = (byte)(pix.Value & 0xFF);
+                    }
                 }
             }
             else
             {
-                for(int p = 0; p < intermediateImage.Length; ++packedI, p += 4)
+                for(int p = 0; p < intermediateImage.Length; p += 8)
                 {
-                    packedBuffer[packedI] = BadgeImage.Pack4GrayPix(
+                    var pix = BadgeImage.Pack8GrayPix(
                         intermediateImage[p + 0],
                         intermediateImage[p + 1],
                         intermediateImage[p + 2],
-                        intermediateImage[p + 3]);
+                        intermediateImage[p + 3],
+                        intermediateImage[p + 4],
+                        intermediateImage[p + 5],
+                        intermediateImage[p + 6],
+                        intermediateImage[p + 7]);
+
+                    packedBuffer[packedI++] = (byte)(pix.Value >> 8);
+                    if(pixelFormat == PixelFormat.TwoBits)
+                    {
+                        packedBuffer[packedI++] = (byte)(pix.Value & 0xFF);
+                    }
                 }
             }
         }
 
-        public static void PackedBufferToIntermediateImage(byte[] packedBuffer, byte[] intermediateImage, int offset, bool rotate)
+        public static void PackedBufferToIntermediateImage(byte[] packedBuffer, byte[] intermediateImage, PixelFormat pixelFormat, int offset, bool rotate)
         {
             int packedI = offset;
             if(rotate)
             {
-                for(int p = intermediateImage.Length - 4; p >= 0; ++packedI, p -= 4)
+                for(int p = intermediateImage.Length - 8; p >= 0; p -= 8)
                 {
-                    intermediateImage[p + 3] = BadgeImage.PixToSrgbGray((byte)((packedBuffer[packedI] >> 0) & 0x3));
-                    intermediateImage[p + 2] = BadgeImage.PixToSrgbGray((byte)((packedBuffer[packedI] >> 2) & 0x3));
-                    intermediateImage[p + 1] = BadgeImage.PixToSrgbGray((byte)((packedBuffer[packedI] >> 4) & 0x3));
-                    intermediateImage[p + 0] = BadgeImage.PixToSrgbGray((byte)((packedBuffer[packedI] >> 6) & 0x3));
+                    ushort value = packedBuffer[packedI++];
+                    value = (ushort)((value << 8) | ((pixelFormat == PixelFormat.TwoBits) ? packedBuffer[packedI++] : value));
+
+                    Unpack8GrayPix(new Pix2x8(value),
+                        out intermediateImage[p + 7],
+                        out intermediateImage[p + 6],
+                        out intermediateImage[p + 5],
+                        out intermediateImage[p + 4],
+                        out intermediateImage[p + 3],
+                        out intermediateImage[p + 2],
+                        out intermediateImage[p + 1],
+                        out intermediateImage[p + 0]);
                 }
             }
             else
             {
-                for(int p = 0; p < intermediateImage.Length; ++packedI, p += 4)
+                for(int p = 0; p < intermediateImage.Length; p += 8)
                 {
-                    intermediateImage[p + 0] = BadgeImage.PixToSrgbGray((byte)((packedBuffer[packedI] >> 0) & 0x3));
-                    intermediateImage[p + 1] = BadgeImage.PixToSrgbGray((byte)((packedBuffer[packedI] >> 2) & 0x3));
-                    intermediateImage[p + 2] = BadgeImage.PixToSrgbGray((byte)((packedBuffer[packedI] >> 4) & 0x3));
-                    intermediateImage[p + 3] = BadgeImage.PixToSrgbGray((byte)((packedBuffer[packedI] >> 6) & 0x3));
+                    ushort value = packedBuffer[packedI++];
+                    value = (ushort)((value << 8) | ((pixelFormat == PixelFormat.TwoBits) ? packedBuffer[packedI++] : value));
+
+                    Unpack8GrayPix(new Pix2x8(value),
+                        out intermediateImage[p + 0],
+                        out intermediateImage[p + 1],
+                        out intermediateImage[p + 2],
+                        out intermediateImage[p + 3],
+                        out intermediateImage[p + 4],
+                        out intermediateImage[p + 5],
+                        out intermediateImage[p + 6],
+                        out intermediateImage[p + 7]);
                 }
             }
         }
@@ -215,7 +288,7 @@ namespace LedBadgeLib
                 {
                     int p = intermediateImage[srcI];
 
-                    int withError = p;//p > (255 - 32) ? 255 : p + 32;
+                    int withError = p; //p > (255 - 32) ? 255 : p + 32;
                     byte rounded = BadgeImage.PixToSrgbGray(BadgeImage.SrgbGrayToPix((byte)withError));
                     intermediateImage[srcI] = rounded;
 
