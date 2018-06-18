@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Ports;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -29,8 +30,7 @@ namespace LedBadge
 
             QueryComPorts();
 
-            FrameBuffer = new WriteableBitmap(LedBadgeLib.BadgeCaps.Width, LedBadgeLib.BadgeCaps.Height, 96, 96, PixelFormats.Gray8, null);
-            InitScene();
+            InitScene(LedBadgeLib.Badges.B1248);
 
             m_frameTimer.Start();
 
@@ -43,6 +43,7 @@ namespace LedBadge
 
             var badgeDispatcher = new LedBadgeLib.BadgeResponsePassthroughDispatcher();
             badgeDispatcher.ResponseHandler += OnBadgeResponse;
+            badgeDispatcher.SendFailureHandler += OnBadgeSendFailure;
             m_badgePump = new LedBadgeLib.BadgePump(badgeDispatcher);
             DisplayMode = DisplayMode.Nothing;
             m_badgePump.RenderFrame += OnRenderFrame;
@@ -63,6 +64,7 @@ namespace LedBadge
         public bool IdleResetToBootImage { get; set; }
         public byte IdleTimeout { get; set; }
 
+        public LedBadgeLib.BadgeCaps Device { get; private set; }
         public byte Brightness { get { return m_badgePump.Brightness; } set { m_badgePump.Brightness = value; } }
         public bool RotateFrame { get { return m_badgePump.RotateFrame; } set { m_badgePump.RotateFrame = value; } }
         public WriteableBitmap FrameBuffer { get; private set; }
@@ -120,28 +122,35 @@ namespace LedBadge
             }
         }
 
-        void InitScene()
+        void InitScene(LedBadgeLib.BadgeCaps device)
         {
-            m_messageScene = new LedBadgeLib.MessageQueueVisual();
+            if(m_messageScene != null && m_messageScene.Queue.Device == device)
+            {
+                return;
+            }
+
+            FrameBuffer = new WriteableBitmap(device.Width, device.Height, 96, 96, PixelFormats.Gray8, null);
+
+            m_messageScene = new LedBadgeLib.MessageQueueVisual(device);
             m_messageScene.GetTransition = (a, b) =>
             {
-                return new LedBadgeLib.SlidingTransition(a, b, LedBadgeLib.SlidingDirection.Left, LedBadgeLib.Easing.None, 60, 0);
+                return new LedBadgeLib.SlidingTransition(device, a, b, LedBadgeLib.SlidingDirection.Left, LedBadgeLib.Easing.None, 60, 0);
             };
             m_messageScene.GetDisplay = e =>
             {
                 if(e.Element is LedBadgeLib.WpfVisual && ((LedBadgeLib.WpfVisual)e.Element).Element is Image)
                 {
-                    return new LedBadgeLib.SlidingPosition2D(e, 1, 1, LedBadgeLib.Easing.Both, 30, 0, 0);
+                    return new LedBadgeLib.SlidingPosition2D(device, e, 1, 1, LedBadgeLib.Easing.Both, 30, 0, 0);
                 }
                 else
                 {
-                    return new LedBadgeLib.SlidingPosition(e, LedBadgeLib.SlidingDirection.Left, LedBadgeLib.Easing.None, 60, 0);
+                    return new LedBadgeLib.SlidingPosition(device, e, LedBadgeLib.SlidingDirection.Left, LedBadgeLib.Easing.None, 60, 0);
                 }
             };
             m_messageScene.ExhaustedQueue = (q, lastItem) => 
             { 
                 Dispatcher.InvokeAsync(() =>
-                    q.Enqueue(LedBadgeLib.WPF.MakeQueuedItem(LedBadgeLib.WPF.MakeSingleLineItem("")))); 
+                    q.Enqueue(LedBadgeLib.WPF.MakeQueuedItem(device, LedBadgeLib.WPF.MakeSingleLineItem(device, "")))); 
                 return true; 
             };
         }
@@ -180,7 +189,7 @@ namespace LedBadge
             {
                 Dispatcher.InvokeAsync(() =>
                 {
-                    LedBadgeLib.WPF.ImageFromPackedBuffer(FrameBuffer, args.Frame.PackedBuffer, 0, RotateFrame, args.Frame.Width, args.Frame.Height);
+                    LedBadgeLib.WPF.ImageFromPackedBuffer(FrameBuffer, args.Frame.PackedBuffer, 0, RotateFrame, args.Frame.WidthInBlocks, args.Frame.Height, LedBadgeLib.PixelFormat.TwoBits);
 
                     if(fpsUpdate)
                     {
@@ -196,54 +205,60 @@ namespace LedBadge
             {
                 case DisplayMode.TestFill:
                 {
-                    TestPattern(args.CommandStream);
+                    TestPattern(m_messageScene.Queue.Device, args.CommandStream);
                     break;
                 }
                 case DisplayMode.TestCopy:
                 {
-                    TestScroll(args.CommandStream);
+                    TestScroll(m_messageScene.Queue.Device, args.CommandStream);
                     break;
                 }
             }
         }
 
-        void TestPattern(MemoryStream commands)
+        void TestPattern(LedBadgeLib.BadgeCaps device, MemoryStream commands)
         {
-            byte[] buffer = new byte[LedBadgeLib.BadgeCaps.FrameStride * 2];
-            for(int i = 0; i < buffer.Length; ++i)
+            int bufferSize;
+            LedBadgeLib.BadgeCommands.CreateWriteRect(commands, LedBadgeLib.Target.BackBuffer, LedBadgeLib.PixelFormat.TwoBits, 0, 0, (byte)device.WidthInBlocks, 2, out bufferSize);
+            for(int i = 0; i < bufferSize; i += 2)
             {
-                buffer[i] = 0xE4;
+                commands.WriteByte(0x33);
+                commands.WriteByte(0x55);
             }
-            LedBadgeLib.BadgeCommands.FillRect(commands, 0, 0, 48, 2, LedBadgeLib.Target.BackBuffer, buffer);
 
-            LedBadgeLib.BadgeCommands.SolidFillRect(commands,  0, 2, 12, 4, LedBadgeLib.Target.BackBuffer, 0);
-            LedBadgeLib.BadgeCommands.SolidFillRect(commands, 12, 2, 12, 4, LedBadgeLib.Target.BackBuffer, 1);
-            LedBadgeLib.BadgeCommands.SolidFillRect(commands, 24, 2, 12, 4, LedBadgeLib.Target.BackBuffer, 2);
-            LedBadgeLib.BadgeCommands.SolidFillRect(commands, 36, 2, 12, 4, LedBadgeLib.Target.BackBuffer, 3);
+            LedBadgeLib.BadgeCommands.CreateFillRect(commands, LedBadgeLib.Target.BackBuffer, 0, 2, 1, 4, new LedBadgeLib.Pix2x8(0x0000));
+            LedBadgeLib.BadgeCommands.CreateFillRect(commands, LedBadgeLib.Target.BackBuffer, 8, 2, 1, 4, new LedBadgeLib.Pix2x8(0x00FF));
+            LedBadgeLib.BadgeCommands.CreateFillRect(commands, LedBadgeLib.Target.BackBuffer, 16, 2, 1, 4, new LedBadgeLib.Pix2x8(0xFF00));
+            LedBadgeLib.BadgeCommands.CreateFillRect(commands, LedBadgeLib.Target.BackBuffer, 24, 2, 1, 4, new LedBadgeLib.Pix2x8(0xFFFF));
 
-            LedBadgeLib.BadgeCommands.CopyRect(commands, 0, 0, 48, 6, 0, 6, LedBadgeLib.Target.BackBuffer, LedBadgeLib.Target.BackBuffer);
+            LedBadgeLib.BadgeCommands.CreateCopyRect(commands, LedBadgeLib.Target.BackBuffer, LedBadgeLib.Target.BackBuffer, 0, 0, 0, 6, (byte)device.WidthInBlocks, 6);
 
-            LedBadgeLib.BadgeCommands.Swap(commands);
+            LedBadgeLib.BadgeCommands.CreateSwap(commands, false, 0);
         }
 
-        void TestScroll(MemoryStream commands)
+        void TestScroll(LedBadgeLib.BadgeCaps device, MemoryStream commands)
         {
-            LedBadgeLib.BadgeCommands.CopyRect(commands, 0, 0, 47, 11, 1, 1, LedBadgeLib.Target.FrontBuffer, LedBadgeLib.Target.BackBuffer);
-            LedBadgeLib.BadgeCommands.CopyRect(commands, 0, 11, 47, 1, 1, 0, LedBadgeLib.Target.FrontBuffer, LedBadgeLib.Target.BackBuffer);
-            LedBadgeLib.BadgeCommands.CopyRect(commands, 47, 0, 1, 11, 0, 1, LedBadgeLib.Target.FrontBuffer, LedBadgeLib.Target.BackBuffer);
-            LedBadgeLib.BadgeCommands.CopyRect(commands, 47, 11, 1, 1, 0, 0, LedBadgeLib.Target.FrontBuffer, LedBadgeLib.Target.BackBuffer);
+            LedBadgeLib.BadgeCommands.CreateCopyRect(commands, LedBadgeLib.Target.FrontBuffer, LedBadgeLib.Target.BackBuffer, 0, 0, (byte)(device.WidthInBlocks - 1), (byte)(device.Height - 1), 1, 1);
+            LedBadgeLib.BadgeCommands.CreateCopyRect(commands, LedBadgeLib.Target.FrontBuffer, LedBadgeLib.Target.BackBuffer, 0, (byte)(device.Height - 1), (byte)(device.WidthInBlocks - 1), 1, 1, 0);
+            LedBadgeLib.BadgeCommands.CreateCopyRect(commands, LedBadgeLib.Target.FrontBuffer, LedBadgeLib.Target.BackBuffer, (byte)(device.WidthInBlocks - 1), 0, 1, (byte)(device.Height - 1), 0, 1);
+            LedBadgeLib.BadgeCommands.CreateCopyRect(commands, LedBadgeLib.Target.FrontBuffer, LedBadgeLib.Target.BackBuffer, (byte)(device.WidthInBlocks - 1), (byte)(device.Height - 1), 1, 1, 0, 0);
 
-            LedBadgeLib.BadgeCommands.Swap(commands);
+            LedBadgeLib.BadgeCommands.CreateSwap(commands, false, 0);
         }
 
         void TestFrame(LedBadgeLib.BadgeRenderTarget frame)
         {
-            LedBadgeLib.ScreenCapture.ReadScreenAtMousePosition(frame.IntermediateImage, LedBadgeLib.BadgeCaps.Width, LedBadgeLib.BadgeCaps.Height);
+            LedBadgeLib.ScreenCapture.ReadScreenAtMousePosition(frame.IntermediateImage, frame.WidthInPixels, frame.Height);
         }
 
         void OnBadgeResponse(object sender, LedBadgeLib.BadgeResponseEventArgs args)
         {
             Dispatcher.InvokeAsync(() => LogMessage(args.Code, args.Response), DispatcherPriority.ApplicationIdle);
+        }
+
+        void OnBadgeSendFailure(object sender, LedBadgeLib.BadgeSendFailureEventArgs args)
+        {
+            Dispatcher.InvokeAsync(() => LogMessage("Failed to send packet"), DispatcherPriority.ApplicationIdle);
         }
 
         void LogMessage(string message, params object[] args)
@@ -258,47 +273,121 @@ namespace LedBadge
             {
                 case LedBadgeLib.ResponseCodes.Ack:
                 {
-                    int cookie;
-                    LedBadgeLib.BadgeResponses.DecodeAck(response, 0, out cookie);
-                    LogMessage("{0} [{1}]", code, cookie);
+                    byte cookie;
+                    LedBadgeLib.ResponseAckSource source;
+                    LedBadgeLib.BadgeResponses.DecodeAck(response, 0, out source, out cookie);
+                    LogMessage("{0} [{1}, {2}]", code, source, cookie);
                     break;
                 }
-                case LedBadgeLib.ResponseCodes.Inputs:
+                case LedBadgeLib.ResponseCodes.Error:
                 {
-                    bool b0, b1;
-                    LedBadgeLib.BadgeResponses.DecodeInputs(response, 0, out b0, out b1);
-                    LogMessage("{0} [{1}, {2}]", code, b0, b1);
+                    byte cookie;
+                    LedBadgeLib.ErrorCodes error;
+                    LedBadgeLib.BadgeResponses.DecodeError(response, 0, out error, out cookie);
+                    LogMessage("{0} [{1}, {2}]", code, error, cookie);
                     break;
                 }
-                case LedBadgeLib.ResponseCodes.Pix:
+                case LedBadgeLib.ResponseCodes.Setting:
                 {
-                    int value;
-                    LedBadgeLib.BadgeResponses.DecodePix(response, 0, out value);
-                    LogFunc(new StackPanel()
+                    LedBadgeLib.SettingValue setting = (LedBadgeLib.SettingValue)(response[0] & 0xF);
+                    switch(setting)
                     {
-                        Children = 
+                        case LedBadgeLib.SettingValue.Brightness:
                         {
-                            new TextBlock() { Text = string.Format("{0} [{1}]", code, value) },
-                            new System.Windows.Shapes.Rectangle() 
-                            {
-                                Width = 48 * scale,
-                                Height = 12 * scale,
-                                Fill = new SolidColorBrush(LedBadgeLib.WPF.ColorFromPix((byte)value)),
-                                SnapsToDevicePixels = true,
-                                HorizontalAlignment = System.Windows.HorizontalAlignment.Left
-                            } 
+                            byte brightness;
+                            LedBadgeLib.BadgeResponses.DecodeBrightnessSetting(response, 0, out brightness);
+                            LogMessage("{0} [{1}, {2}]", code, setting, brightness);
+                            break;
                         }
-                    });
+                        case LedBadgeLib.SettingValue.HoldTimings:
+                        {
+                            byte a, b, c;
+                            LedBadgeLib.BadgeResponses.DecodeHoldTimingsSetting(response, 0, out a, out b, out c);
+                            LogMessage("{0} [{1}, {2}, {3}, {4}]", code, setting, a, b, c);
+                            break;
+                        }
+                        case LedBadgeLib.SettingValue.IdleTimeout:
+                        {
+                            byte timeout;
+                            bool enableFade;
+                            LedBadgeLib.EndofFadeAction endOfFade;
+                            LedBadgeLib.BadgeResponses.DecodeIdleTimeoutSetting(response, 0, out timeout, out enableFade, out endOfFade);
+                            LogMessage("{0} [{1}, {2}, {3}, {4}]", code, setting, timeout, enableFade, endOfFade);
+                            break;
+                        }
+                        case LedBadgeLib.SettingValue.FadeValue:
+                        {
+                            byte fadeValue;
+                            LedBadgeLib.FadingAction action;
+                            LedBadgeLib.BadgeResponses.DecodeFadeValueSetting(response, 0, out fadeValue, out action);
+                            LogMessage("{0} [{1}, {2}, {3}]", code, setting, fadeValue, action);
+                            break;
+                        }
+                        case LedBadgeLib.SettingValue.AnimBookmarkPos:
+                        {
+                            short pos;
+                            LedBadgeLib.BadgeResponses.DecodeAnimBookmarkPosSetting(response, 0, out pos);
+                            LogMessage("{0} [{1}, {2}]", code, setting, pos);
+                            break;
+                        }
+                        case LedBadgeLib.SettingValue.AnimReadPos:
+                        {
+                            short pos;
+                            LedBadgeLib.BadgeResponses.DecodeAnimReadPosSetting(response, 0, out pos);
+                            LogMessage("{0} [{1}, {2}]", code, setting, pos);
+                            break;
+                        }
+                        case LedBadgeLib.SettingValue.AnimPlayState:
+                        {
+                            LedBadgeLib.AnimState animState;
+                            LedBadgeLib.BadgeResponses.DecodeAnimPlayStateSetting(response, 0, out animState);
+                            LogMessage("{0} [{1}, {2}]", code, setting, animState);
+                            break;
+                        }
+                        case LedBadgeLib.SettingValue.ButtonState:
+                        {
+                            bool b0, b1;
+                            LedBadgeLib.BadgeResponses.DecodeButtonStateSetting(response, 0, out b0, out b1);
+                            LogMessage("{0} [{1}, {2}, {3}]", code, setting, b0, b1);
+                            break;
+                        }
+                        case LedBadgeLib.SettingValue.BufferFullness:
+                        {
+                            byte fullness;
+                            LedBadgeLib.BadgeResponses.DecodeBufferFullnessSetting(response, 0, out fullness);
+                            LogMessage("{0} [{1}, {2}]", code, setting, fullness);
+                            break;
+                        }
+                        case LedBadgeLib.SettingValue.Caps:
+                        {
+                            byte version;
+                            byte width;
+                            byte height;
+                            byte bitDepth;
+                            LedBadgeLib.SupportedFeatures capBits;
+                            LedBadgeLib.BadgeResponses.DecodeCapsSetting(response, 0, out version, out width, out height, out bitDepth, out capBits);
+                            LogMessage("{0} [{1}, {2}, {3}, {4}, {5}, {6}]", code, setting, version, width, height, bitDepth, capBits);
+                            break;
+                        }
+                        default:
+                        {
+                            LogMessage("{0} [{1}]", code, setting);
+                            break;
+                        }
+                    }
                     break;
                 }
-                case LedBadgeLib.ResponseCodes.PixRect:
+                case LedBadgeLib.ResponseCodes.Pixels:
                 {
-                    int width, height, length;
-                    int offset = LedBadgeLib.BadgeResponses.DecodePixRect(response, 0, out width, out height, out length);
+                    LedBadgeLib.PixelFormat format;
+                    byte widthInBlocks;
+                    byte height; 
+                    byte bufferLength;
+                    int offset = LedBadgeLib.BadgeResponses.DecodePixels(response, 0, out format, out widthInBlocks, out height, out bufferLength);
                     var img = new System.Windows.Controls.Image()
                     {
-                        Source = LedBadgeLib.WPF.ImageFromPackedBuffer(response, offset, RotateFrame, width, height),
-                        Width = width * scale,
+                        Source = LedBadgeLib.WPF.ImageFromPackedBuffer(response, offset, RotateFrame, widthInBlocks, height, format),
+                        Width = widthInBlocks * LedBadgeLib.BadgeCaps.PixelsPerBlockBitPlane * scale,
                         Height = height * scale,
                         SnapsToDevicePixels = true,
                         HorizontalAlignment = System.Windows.HorizontalAlignment.Left
@@ -308,24 +397,57 @@ namespace LedBadge
                     {
                         Children = 
                         {
-                            new TextBlock() { Text = string.Format("{0} [{1}x{2}, {3}b]", code, width, height, length) },
+                            new TextBlock() { Text = string.Format("{0} [{1} {2}x{3}, {4}b]", code, format, widthInBlocks*LedBadgeLib.BadgeCaps.PixelsPerBlockBitPlane, height, bufferLength) },
                             img 
                         }
                     });
                     break;
                 }
-                case LedBadgeLib.ResponseCodes.Version:
+                case LedBadgeLib.ResponseCodes.Memory:
                 {
-                    int version;
-                    LedBadgeLib.BadgeResponses.DecodeVersion(response, 0, out version);
-                    LogMessage("{0} [{1}]", code, version);
-                    break;
-                }
-                case LedBadgeLib.ResponseCodes.BufferState:
-                {
-                    int size;
-                    LedBadgeLib.BadgeResponses.DecodeBufferState(response, 0, out size);
-                    LogMessage("{0} [{1}]", code, size);
+                    byte numDWords;
+                    short address;
+                    byte bufferLength;
+                    int offset = LedBadgeLib.BadgeResponses.DecodeMemory(response, 0, out numDWords, out address, out bufferLength);
+
+                    StringBuilder sb = new StringBuilder();
+                    int p = offset;
+                    int x = 0;
+                    string hex = "0123456789ABCDEF";
+                    char[] buffer = new char[8 * 3 + 1 + 8];
+                    for(int i = 0; i < buffer.Length; ++i)
+                    {
+                        buffer[i] = ' ';
+                    }
+                    for(int i = 0; i < bufferLength; ++i)
+                    {
+                        byte b = response[i + offset];
+                        buffer[x * 3] = hex[b >> 4];
+                        buffer[x * 3 + 1] = hex[b & 0xF];
+                        buffer[x + (8 * 3 + 1)] = (b < 32 || b > 127) ? '.' : (char)b;
+                        if(++x == 8)
+                        {
+                            x = 0;
+                            sb.Append(buffer);
+                            if(i != bufferLength - 1)
+                            {
+                                sb.AppendLine();
+                            }
+                        }
+                    }
+                    if(x != 0)
+                    {
+                        while(x < 8)
+                        {
+                            buffer[x * 3] = ' ';
+                            buffer[x * 3 + 1] = ' ';
+                            buffer[x + (8 * 3 + 1)] = ' ';
+                            ++x;
+                        }
+                        sb.Append(buffer);
+                    }
+
+                    LogMessage("{0} [{1}, 0x{2:X4}, {3}]\n{4}", code, numDWords, address, bufferLength, sb.ToString());
                     break;
                 }
                 default:
@@ -357,7 +479,7 @@ namespace LedBadge
             {
                 try
                 {
-                    m_badgePump.Connect(SelectedComPort);
+                    m_badgePump.Connect(SelectedComPort, LedBadgeLib.Badges.B1248);
                     LogMessage("Connected to " + SelectedComPort);
                 }
                 catch(Exception e)
@@ -383,58 +505,8 @@ namespace LedBadge
         public void SendPing()
         {
             var commands = new MemoryStream();
-            LedBadgeLib.BadgeCommands.Ping(commands, 0);
-            m_badgePump.EnqueueCommandsAsync(commands);
-        }
-
-        public void GetVersion()
-        {
-            var commands = new MemoryStream();
-            LedBadgeLib.BadgeCommands.GetVersion(commands);
-            m_badgePump.EnqueueCommandsAsync(commands);
-        }
-
-        public void PollInputs()
-        {
-            var commands = new MemoryStream();
-            LedBadgeLib.BadgeCommands.PollInputs(commands);
-            m_badgePump.EnqueueCommandsAsync(commands);
-        }
-
-        public void GetImage()
-        {
-            var commands = new MemoryStream();
-            LedBadgeLib.BadgeCommands.GetPixelRect(commands, 0, 0, LedBadgeLib.BadgeCaps.Width, LedBadgeLib.BadgeCaps.Height, LedBadgeLib.Target.FrontBuffer);
-            m_badgePump.EnqueueCommandsAsync(commands);
-        }
-
-        public void GetBufferState()
-        {
-            var commands = new MemoryStream();
-            LedBadgeLib.BadgeCommands.GetBufferFullness(commands);
-            m_badgePump.EnqueueCommandsAsync(commands);
-        }
-
-        public void SetHoldTimings(int a, int b, int c)
-        {
-            var commands = new MemoryStream();
-            LedBadgeLib.BadgeCommands.SetHoldTimings(commands, a, b, c);
-            m_badgePump.EnqueueCommandsAsync(commands);
-        }
-
-        public void SetIdleTimeout(bool fade, bool resetToBootImage, int timeout)
-        {
-            var commands = new MemoryStream();
-            LedBadgeLib.BadgeCommands.SetIdleTimeout(commands, fade, resetToBootImage, timeout);
-            m_badgePump.EnqueueCommandsAsync(commands);
-        }
-
-        public void SetBootImage()
-        {
-            var commands = new MemoryStream();
-            LedBadgeLib.BadgeCommands.SetPowerOnImage(commands);
-            LedBadgeLib.BadgeCommands.Ping(commands, 15);
-            m_badgePump.EnqueueCommandsAsync(commands);
+            LedBadgeLib.BadgeCommands.CreatePing(commands, true, 0xFF);
+            m_badgePump.EnqueueCommandsAsync(commands, true);
         }
     }
 }

@@ -49,7 +49,9 @@ unsigned char ReadInternalEEPROM(unsigned int addr)
 // Initial setup for the off chip memory
 void ConfigureExternalEEPROM()
 {
+#ifdef ENABLE_EXTERNAL_EEPROM
 	ResetExternalEEPROM();
+#endif
 }
 
 // Soft reset the off chip memory

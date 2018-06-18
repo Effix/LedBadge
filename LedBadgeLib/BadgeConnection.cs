@@ -31,6 +31,10 @@ namespace LedBadgeLib
             m_nextPacketID = 1;
 
             //
+            if(System.Diagnostics.Debugger.IsAttached)
+            {
+                retryInterval = 5000;
+            }
             m_timer = new System.Threading.Timer(TimeoutEvent, null, retryInterval, retryInterval);
             m_timerInterval = retryInterval;
 
@@ -170,9 +174,16 @@ namespace LedBadgeLib
                 PendingPacket packet = ExpirePendingPacket(Environment.TickCount);
                 if(packet.Packet != null)
                 {
-                    lock(m_resendPackets)
+                    if(packet.Attempt >= m_retryMax)
                     {
-                        m_resendPackets.Add(packet);
+                        m_dispatcher.NotifySendFailure(this, packet.Packet);
+                    }
+                    else
+                    {
+                        lock(m_resendPackets)
+                        {
+                            m_resendPackets.Add(packet);
+                        }
                     }
                 }
                 else
@@ -378,6 +389,7 @@ namespace LedBadgeLib
         byte m_nextPacketID;
         System.Threading.Timer m_timer;
         int m_timerInterval;
+        int m_retryMax = 5;
         IBadgeResponseDispatcher m_dispatcher;
         byte[] m_inputBuffer = new byte[8192];
         byte[] m_tempHeader = new byte[6];

@@ -62,37 +62,37 @@ namespace LedBadge
 
         private void GetVersion(object sender, RoutedEventArgs e)
         {
-            m_vm.GetVersion();
+            //m_vm.GetVersion();
         }
 
         private void PollInputs(object sender, RoutedEventArgs e)
         {
-            m_vm.PollInputs();
+            //m_vm.PollInputs();
         }
 
         private void GetImage(object sender, RoutedEventArgs e)
         {
-            m_vm.GetImage();
+            //m_vm.GetImage();
         }
 
         private void GetBuffer(object sender, RoutedEventArgs e)
         {
-            m_vm.GetBufferState();
+            //m_vm.GetBufferState();
         }
 
         private void SetBootImage(object sender, RoutedEventArgs e)
         {
-            m_vm.SetBootImage();
+            //m_vm.SetBootImage();
         }
 
         private void SetHoldTimings(object sender, RoutedEventArgs e)
         {
-            m_vm.SetHoldTimings(m_vm.HoldTimingA, m_vm.HoldTimingB, m_vm.HoldTimingC);
+            //m_vm.SetHoldTimings(m_vm.HoldTimingA, m_vm.HoldTimingB, m_vm.HoldTimingC);
         }
 
         private void SetIdleTimeout(object sender, RoutedEventArgs e)
         {
-            m_vm.SetIdleTimeout(m_vm.IdleFade, m_vm.IdleResetToBootImage, m_vm.IdleTimeout);
+            //m_vm.SetIdleTimeout(m_vm.IdleFade, m_vm.IdleResetToBootImage, m_vm.IdleTimeout);
         }
 
         private void ClearLog(object sender, RoutedEventArgs e)
@@ -106,8 +106,8 @@ namespace LedBadge
                 (bool)SingleLineLayout.IsChecked ? Layout.SingleLine :
                 (bool)DoubleLineLayout.IsChecked ? Layout.DoubleLine : 
                                                    Layout.Split;
-            m_vm.TextProvider.SendText(TextInput.Text, layout);
-            TextInput.Clear();
+            m_vm.TextProvider.SendText(TextInputBox.Text, layout);
+            TextInputBox.Clear();
         }
 
         private void SendImage(object sender, RoutedEventArgs e)

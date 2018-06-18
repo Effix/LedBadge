@@ -190,6 +190,11 @@ bool SwapCommandHandler(unsigned char header, FetchByte fetch)
 	{
 		PumpAck();
 		_delay_ms(16.6);
+
+		if(GetPendingSerialDataSize())
+		{
+			break;
+		}
 	}
 
 	return true;
@@ -474,6 +479,7 @@ void InitAnim()
 	}
 	else
 	{
+#ifdef ENABLE_EXTERNAL_EEPROM
 		BeginReadExternalEEPROM(0);
 		bool external = ReadNextByteFromExternalEEPROM(true) == Magic[0];
 		external &= ReadNextByteFromExternalEEPROM(true) == Magic[1];
@@ -486,5 +492,6 @@ void InitAnim()
 			g_CommandReg.AnimReadPosition = RomTarget::TypeExternal;
 			g_CommandReg.AnimPlaying = AnimState::Playing;
 		}
+#endif // ENABLE_EXTERNAL_EEPROM
 	}
 }

@@ -24,7 +24,8 @@ namespace LedBadgeLib
                 case ResponseCodes.Memory:  return 3;
                 case ResponseCodes.Error:   return 2;
             }
-            throw new NotImplementedException("Unimplemented ResponseCode length! (" + response + ")");
+            //throw new NotImplementedException("Unimplemented ResponseCode length! (" + response + ")");
+            return 1;
         }
 
         public static int GetSettingResponseLength(SettingValue setting)
@@ -42,7 +43,8 @@ namespace LedBadgeLib
                 case SettingValue.BufferFullness:   return 2;
                 case SettingValue.Caps:             return 5;
             }
-            throw new NotImplementedException("Unimplemented SettingValue length! (" + setting + ")");
+            //throw new NotImplementedException("Unimplemented SettingValue length! (" + setting + ")");
+            return 1;
         }
 
         public static int GetFullResponseLength(ResponseCodes response, byte[] buffer, int offset)

@@ -12,11 +12,13 @@ namespace LedBadgeLib
 {
     public class BadgeFrameEventArgs: EventArgs
     {
-        public BadgeFrameEventArgs(BadgeRenderTarget buffer)
+        public BadgeFrameEventArgs(BadgeCaps device, BadgeRenderTarget buffer)
         {
+            Device = device;
             Frame = buffer;
         }
 
+        public BadgeCaps Device { get; set; }
         public BadgeRenderTarget Frame { get; set; }
     }
 
@@ -24,11 +26,13 @@ namespace LedBadgeLib
 
     public class BadgeCommandEventArgs: EventArgs
     {
-        public BadgeCommandEventArgs(MemoryStream commands)
+        public BadgeCommandEventArgs(BadgeCaps device, MemoryStream commands)
         {
+            Device = device;
             CommandStream = commands;
         }
 
+        public BadgeCaps Device { get; set; }
         public MemoryStream CommandStream { get; set; }
     }
 
@@ -51,7 +55,7 @@ namespace LedBadgeLib
         public bool Dither { get; set; }
         public byte Brightness { get; set; }
         public bool Connected { get { return m_connection != null; } }
-        public BadgeCaps Device { get { return Connected ? m_connection.Device : null; } }
+        public BadgeCaps Device { get { return m_device; } }
         public bool Running { get; private set; }
         public bool UseFrameBuffer { get; set; }
         public bool RotateFrame { get; set; }
@@ -65,6 +69,7 @@ namespace LedBadgeLib
         public event BadgeCommandEvenHandler ReadyToSend;
 
         int m_prevBrightness = -1;
+        BadgeCaps m_device;
         IBadgeResponseDispatcher m_responseDispatcher;
         BadgeConnection m_connection;
         ConcurrentQueue<Tuple<MemoryStream, bool>> m_pendingCommands = new ConcurrentQueue<Tuple<MemoryStream, bool>>();
@@ -99,15 +104,18 @@ namespace LedBadgeLib
             {
                 m_connection.Close();
                 m_connection = null;
+                m_responseDispatcher.ResponseHandler -= ResponseHandler;
             }
         }
 
-        public void Connect(string port, int baud)
+        public void Connect(string port, BadgeCaps device)
         {
             if(!Connected)
             {
+                m_device = device;
                 m_prevBrightness = -1;
-                m_connection = new BadgeConnection(port, baud, m_responseDispatcher);
+                m_responseDispatcher.ResponseHandler += ResponseHandler;
+                m_connection = new BadgeConnection(port, device.Baud, m_responseDispatcher);
             }
             else
             {
@@ -142,7 +150,7 @@ namespace LedBadgeLib
                     var render = RenderFrame;
                     if(render != null)
                     {
-                        render(this, new BadgeFrameEventArgs(m_renderTarget));
+                        render(this, new BadgeFrameEventArgs(Device, m_renderTarget));
                     }
 
                     if(Dither)
@@ -154,7 +162,7 @@ namespace LedBadgeLib
                     var ready = FrameReady;
                     if(ready != null)
                     {
-                        ready(this, new BadgeFrameEventArgs(m_renderTarget));
+                        ready(this, new BadgeFrameEventArgs(Device, m_renderTarget));
                     }
 
                     int writeBufferLength;
@@ -169,14 +177,14 @@ namespace LedBadgeLib
                 var getCommands = GenerateCommands;
                 if(getCommands != null)
                 {
-                    getCommands(this, new BadgeCommandEventArgs(commands));
+                    getCommands(this, new BadgeCommandEventArgs(Device, commands));
                 }
             }
 
             var readyToSend = ReadyToSend;
             if(readyToSend != null)
             {
-                readyToSend(this, new BadgeCommandEventArgs(commands));
+                readyToSend(this, new BadgeCommandEventArgs(Device, commands));
             }
 
             SendFrame(commands);
@@ -206,6 +214,14 @@ namespace LedBadgeLib
                 while(m_pendingCommands.TryDequeue(out additionalCommands))
                 {
                 }
+            }
+        }
+
+        void ResponseHandler(object sender, BadgeResponseEventArgs args)
+        {
+            if((args.FromBadge == m_connection) && (args.Code == ResponseCodes.Setting) && ((SettingValue)(args.Response[0] & 0xF) == SettingValue.Caps))
+            {
+                m_device = args.FromBadge.Device;
             }
         }
 

@@ -25,11 +25,27 @@ namespace LedBadgeLib
 
     public delegate void ResponseEvenHandler(object sender, BadgeResponseEventArgs args);
 
+    public class BadgeSendFailureEventArgs: EventArgs
+    {
+        public BadgeSendFailureEventArgs(BadgeConnection badge, byte[] packet)
+        {
+            FromBadge = badge;
+            Packet = packet;
+        }
+
+        public BadgeConnection FromBadge { get; private set; }
+        public byte[] Packet { get; private set; }
+    }
+
+    public delegate void SendFailureEventHandler(object sender, BadgeSendFailureEventArgs args);
+
     public interface IBadgeResponseDispatcher
     {
         void EnqueueResponse(BadgeConnection badge, byte[][] responses);
-        
+        void NotifySendFailure(BadgeConnection badge, byte[] packet);
+
         event ResponseEvenHandler ResponseHandler;
+        event SendFailureEventHandler SendFailureHandler;
     }
 
     /// <summary>
@@ -50,7 +66,17 @@ namespace LedBadgeLib
             }
         }
 
+        public void NotifySendFailure(BadgeConnection badge, byte[] packet)
+        {
+            var handler = SendFailureHandler;
+            if(handler != null)
+            {
+                handler(this, new BadgeSendFailureEventArgs(badge, packet));
+            }
+        }
+
         public event ResponseEvenHandler ResponseHandler;
+        public event SendFailureEventHandler SendFailureHandler;
     }
 
     public class BadgeResponseBufferedDispatcher: IBadgeResponseDispatcher, IDisposable
@@ -72,11 +98,18 @@ namespace LedBadgeLib
 
         public void EnqueueResponse(BadgeConnection badge, byte[][] responses)
         {
-            m_Responses.Enqueue(Tuple.Create(badge, responses));
+            m_responses.Enqueue(Tuple.Create(badge, responses));
+            m_hasWork.Release();
+        }
+
+        public void NotifySendFailure(BadgeConnection badge, byte[] packet)
+        {
+            m_failures.Enqueue(Tuple.Create(badge, packet));
             m_hasWork.Release();
         }
 
         public event ResponseEvenHandler ResponseHandler;
+        public event SendFailureEventHandler SendFailureHandler;
 
         void ThreadBody()
         {
@@ -84,16 +117,31 @@ namespace LedBadgeLib
             {
                 m_hasWork.Wait();
                 
-                var handler = ResponseHandler;
-
-                Tuple<BadgeConnection, byte[][]> responses;
-                while(m_Responses.TryDequeue(out responses))
                 {
-                    if(handler != null)
+                    var handler = ResponseHandler;
+
+                    Tuple<BadgeConnection, byte[][]> responses;
+                    while(m_responses.TryDequeue(out responses))
                     {
-                        foreach(byte[] response in responses.Item2)
+                        if(handler != null)
                         {
-                            handler(this, new BadgeResponseEventArgs(responses.Item1, response));
+                            foreach(byte[] response in responses.Item2)
+                            {
+                                handler(this, new BadgeResponseEventArgs(responses.Item1, response));
+                            }
+                        }
+                    }
+                }
+
+                {
+                    var handler = SendFailureHandler;
+
+                    Tuple<BadgeConnection, byte[]> failure;
+                    while(m_failures.TryDequeue(out failure))
+                    {
+                        if(handler != null)
+                        {
+                            handler(this, new BadgeSendFailureEventArgs(failure.Item1, failure.Item2));
                         }
                     }
                 }
@@ -103,6 +151,7 @@ namespace LedBadgeLib
         bool m_cancel;
         Thread m_dispatcher;
         SemaphoreSlim m_hasWork = new SemaphoreSlim(0);
-        ConcurrentQueue<Tuple<BadgeConnection, byte[][]>> m_Responses = new ConcurrentQueue<Tuple<BadgeConnection, byte[][]>>();
+        ConcurrentQueue<Tuple<BadgeConnection, byte[][]>> m_responses = new ConcurrentQueue<Tuple<BadgeConnection, byte[][]>>();
+        ConcurrentQueue<Tuple<BadgeConnection, byte[]>> m_failures = new ConcurrentQueue<Tuple<BadgeConnection, byte[]>>();
     }
 }

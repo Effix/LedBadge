@@ -25,6 +25,7 @@ namespace LedBadgeLib
             FrameSize = FrameStride * Height;
             IntermediateFrameStride = Width;
             IntermediateFrameSize = IntermediateFrameStride * Height;
+            SupportedFeatures = caps;
             Baud = baud;
         }
 
@@ -55,8 +56,35 @@ namespace LedBadgeLib
         public int IntermediateFrameStride { get; private set; }
         /// <summary>Number of bytes for a full screen unpacked image buffer (i.e., one byte per pixel).</summary>
         public int IntermediateFrameSize { get; private set; }
+        /// <summary>Bits flags for the various supported features of this badge.</summary>
+        public SupportedFeatures SupportedFeatures { get; private set; }
         /// <summary>Communication rate of the connected badge.</summary>
         public int Baud { get; private set; }
+
+        public override bool Equals(object obj)
+        {
+            if(ReferenceEquals(this, obj))
+            {
+                return true;
+            }
+
+            BadgeCaps other = obj as BadgeCaps;
+            if(other == null)
+            {
+                return false;
+            }
+
+            return
+                (Width == other.Width) &&
+                (Height == other.Height) &&
+                (BitsPerPixel == other.BitsPerPixel) &&
+                (SupportedFeatures == other.SupportedFeatures);
+        }
+
+        public override int GetHashCode()
+        {
+            return (int)((Width) | (Height << 8) | (BitsPerPixel << 16) | ((byte)SupportedFeatures << 24));
+        }
     }
 
     /// <summary>

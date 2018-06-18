@@ -67,34 +67,34 @@ namespace LedBadgeLib
             return Color.FromRgb(g, g, g);
         }
 
-        public static BitmapSource ImageFromIntermediate(byte[] intermediateImage, int width, int height)
+        public static BitmapSource ImageFromIntermediate(byte[] intermediateImage, int widthInBlocks, int height)
         {
-            var image = new WriteableBitmap(width, height, 96, 96, PixelFormats.Gray8, null);
-            ImageFromIntermediate(image, intermediateImage, width, height);
+            var image = new WriteableBitmap(widthInBlocks * LedBadgeLib.BadgeCaps.PixelsPerBlockBitPlane, height, 96, 96, PixelFormats.Gray8, null);
+            ImageFromIntermediate(image, intermediateImage, widthInBlocks, height);
             return image;
         }
 
-        public static void ImageFromIntermediate(WriteableBitmap target, byte[] intermediateImage, int width, int height)
+        public static void ImageFromIntermediate(WriteableBitmap target, byte[] intermediateImage, int widthInBlocks, int height)
         {
-            target.WritePixels(new Int32Rect(0, 0, width, height), intermediateImage, width, 0);
+            target.WritePixels(new Int32Rect(0, 0, widthInBlocks * LedBadgeLib.BadgeCaps.PixelsPerBlockBitPlane, height), intermediateImage, widthInBlocks * LedBadgeLib.BadgeCaps.PixelsPerBlockBitPlane, 0);
         }
 
-        public static BitmapSource ImageFromPackedBuffer(byte[] packedBuffer, int offset, bool rotate, int width, int height, PixelFormat pixelFormat)
+        public static BitmapSource ImageFromPackedBuffer(byte[] packedBuffer, int offset, bool rotate, int widthInBlocks, int height, PixelFormat pixelFormat)
         {
-            if(width > 0 && height > 0)
+            if(widthInBlocks > 0 && height > 0)
             {
-                var image = new WriteableBitmap(width, height, 96, 96, PixelFormats.Gray8, null);
-                ImageFromPackedBuffer(image, packedBuffer, offset, rotate, width, height, pixelFormat);
+                var image = new WriteableBitmap(widthInBlocks * LedBadgeLib.BadgeCaps.PixelsPerBlockBitPlane, height, 96, 96, PixelFormats.Gray8, null);
+                ImageFromPackedBuffer(image, packedBuffer, offset, rotate, widthInBlocks, height, pixelFormat);
                 return image;
             }
             return null;
         }
 
-        public static void ImageFromPackedBuffer(WriteableBitmap target, byte[] packedBuffer, int offset, bool rotate, int width, int height, PixelFormat pixelFormat, byte[] tempIntermediate = null)
+        public static void ImageFromPackedBuffer(WriteableBitmap target, byte[] packedBuffer, int offset, bool rotate, int widthInBlocks, int height, PixelFormat pixelFormat, byte[] tempIntermediate = null)
         {
-            var intermediateImage = tempIntermediate ?? new byte[width * height];
+            var intermediateImage = tempIntermediate ?? new byte[widthInBlocks * LedBadgeLib.BadgeCaps.PixelsPerBlockBitPlane * height];
             BadgeImage.PackedBufferToIntermediateImage(packedBuffer, intermediateImage, pixelFormat, offset, rotate);
-            ImageFromIntermediate(target, intermediateImage, width, height);
+            ImageFromIntermediate(target, intermediateImage, widthInBlocks, height);
         }
 
         public static FrameworkElement MakeSingleLineItem(BadgeCaps device, string message, bool halfSize = false, bool fullWidth = true)

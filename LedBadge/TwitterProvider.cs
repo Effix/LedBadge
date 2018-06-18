@@ -214,25 +214,25 @@ namespace LedBadge
                         Source = source,
                         SnapsToDevicePixels = true,
                         UseLayoutRounding = true,
-                        MinWidth = LedBadgeLib.BadgeCaps.Width,
-                        MinHeight = LedBadgeLib.BadgeCaps.Height,
+                        MinWidth = m_messageQueue.Device.Width,
+                        MinHeight = m_messageQueue.Device.Height,
                         Width = source.Width * ((BitmapSource)source).DpiX / 96,
                         Stretch = Stretch.UniformToFill,
                     };
                     RenderOptions.SetBitmapScalingMode(source, BitmapScalingMode.NearestNeighbor);
-                    el.Measure(new Size(LedBadgeLib.BadgeCaps.Width, LedBadgeLib.BadgeCaps.Height));
-                    el.Arrange(new Rect(0, 0, LedBadgeLib.BadgeCaps.Width, LedBadgeLib.BadgeCaps.Height));
+                    el.Measure(new Size(m_messageQueue.Device.Width, m_messageQueue.Device.Height));
+                    el.Arrange(new Rect(0, 0, m_messageQueue.Device.Width, m_messageQueue.Device.Height));
                     return el;
                 };
 
                 if(images.Count > 0)
                 {
-                    m_messageQueue.Enqueue(new LedBadgeLib.MessageQueueItem(new LedBadgeLib.WpfVisual(makeImg(images[0]), dither: Dither)));
+                    m_messageQueue.Enqueue(new LedBadgeLib.MessageQueueItem(new LedBadgeLib.WpfVisual(m_messageQueue.Device, makeImg(images[0]), dither : Dither)));
                 }
-                m_messageQueue.Enqueue(LedBadgeLib.WPF.MakeQueuedItem(LedBadgeLib.WPF.MakeSingleLineItem(text)));
+                m_messageQueue.Enqueue(LedBadgeLib.WPF.MakeQueuedItem(m_messageQueue.Device, LedBadgeLib.WPF.MakeSingleLineItem(m_messageQueue.Device, text)));
                 for(int i = 1; i < images.Count; ++i)
                 {
-                    m_messageQueue.Enqueue(new LedBadgeLib.MessageQueueItem(new LedBadgeLib.WpfVisual(makeImg(images[i]), dither : Dither)));
+                    m_messageQueue.Enqueue(new LedBadgeLib.MessageQueueItem(new LedBadgeLib.WpfVisual(m_messageQueue.Device, makeImg(images[i]), dither : Dither)));
                 }
             }
             else

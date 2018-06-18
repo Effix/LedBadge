@@ -43,7 +43,7 @@ namespace LedBadge
                     for(int i = 0; i < lines.Length; ++i)
                     {
                         var msg = lines[i];
-                        m_messageQueue.Enqueue(LedBadgeLib.WPF.MakeQueuedItem(LedBadgeLib.WPF.MakeSingleLineItem(msg)));
+                        m_messageQueue.Enqueue(LedBadgeLib.WPF.MakeQueuedItem(m_messageQueue.Device, LedBadgeLib.WPF.MakeSingleLineItem(m_messageQueue.Device, msg)));
                     }
                     break;
                 }
@@ -53,7 +53,7 @@ namespace LedBadge
                     {
                         var msg1 = lines[i];
                         var msg2 = i + 1 < lines.Length ? lines[i + 1] : "";
-                        m_messageQueue.Enqueue(LedBadgeLib.WPF.MakeQueuedItem(LedBadgeLib.WPF.MakeDoubleLineItem(msg1, msg2)));
+                        m_messageQueue.Enqueue(LedBadgeLib.WPF.MakeQueuedItem(m_messageQueue.Device, LedBadgeLib.WPF.MakeDoubleLineItem(m_messageQueue.Device, msg1, msg2)));
                     }
                     break;
                 }
@@ -64,7 +64,7 @@ namespace LedBadge
                         var msg1 = lines[i];
                         var msg2 = i + 1 < lines.Length ? lines[i + 1] : "";
                         var msg3 = i + 2 < lines.Length ? lines[i + 2] : "";
-                        m_messageQueue.Enqueue(LedBadgeLib.WPF.MakeQueuedItem(LedBadgeLib.WPF.MakeSplitLineItem(msg1, msg2, msg3)));
+                        m_messageQueue.Enqueue(LedBadgeLib.WPF.MakeQueuedItem(m_messageQueue.Device, LedBadgeLib.WPF.MakeSplitLineItem(m_messageQueue.Device, msg1, msg2, msg3)));
                     }
                     break;
                 }
