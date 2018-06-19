@@ -113,7 +113,7 @@ namespace LedBadgeLib
     public enum SupportedFeatures: byte
     {
         /// <summary>Supports fine grained PWM brightness.</summary>
-        HardwareBrightness
+        HardwareBrightness = 1
     }
 
     /// <summary>

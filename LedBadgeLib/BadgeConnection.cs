@@ -145,7 +145,7 @@ namespace LedBadgeLib
                 }
 
                 //
-                byte headerCrc =
+                m_tempHeader[5] =
                 m_tempHeader[0] = 0xA5;
                 m_tempHeader[1] = ensureDelivery ? AcquirePacketId() : (byte)0;
                 m_tempHeader[2] = length;
@@ -153,9 +153,8 @@ namespace LedBadgeLib
                 m_tempHeader[4] = (byte)(dataCrc >> 8);
                 for(int i = 1; i < 5; ++i)
                 {
-                    headerCrc = crc8_ccitt_update(headerCrc, m_tempHeader[i]);
+                    m_tempHeader[5] = crc8_ccitt_update(m_tempHeader[5], m_tempHeader[i]);
                 }
-                m_tempHeader[5] = headerCrc;
 
                 //
                 Stream.Write(m_tempHeader, 0, m_tempHeader.Length);
@@ -226,20 +225,20 @@ namespace LedBadgeLib
                     // handle a couple of special responses before forwarding them along
                     if(code == ResponseCodes.Ack)
                     {
-                        bool fromSerialPacket = ((buffer[i] & 0x08) == 0);
+                        bool fromSerialPacket = ((fullResponse[0] & 0x08) == 0);
                         if(fromSerialPacket)
                         {
                             // reliable packet success!
-                            RetirePendingPacket(buffer[i + 1]);
+                            RetirePendingPacket(fullResponse[1]);
                         }
                     }
                     else if(code == ResponseCodes.Error)
                     {
-                        ErrorCodes error = (ErrorCodes)(buffer[i] & 0xF);
+                        ErrorCodes error = (ErrorCodes)(fullResponse[0] & 0xF);
                         if(error == ErrorCodes.CorruptPacketData || error == ErrorCodes.ReceiveBufferOverrun)
                         {
                             // reliable packet failure!
-                            PendingPacket packet = RetirePendingPacket(buffer[i + 1]);
+                            PendingPacket packet = RetirePendingPacket(fullResponse[1]);
                             if(packet.Packet != null)
                             {
                                 lock(m_resendPackets)
@@ -251,7 +250,7 @@ namespace LedBadgeLib
                     }
                     else if(code == ResponseCodes.Setting)
                     {
-                        SettingValue valueType = (SettingValue)(buffer[i] & 0xF);
+                        SettingValue valueType = (SettingValue)(fullResponse[0] & 0xF);
                         if(valueType == SettingValue.Caps)
                         {
                             byte version, width, height, bitDepth;

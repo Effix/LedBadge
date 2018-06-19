@@ -79,15 +79,15 @@ void ConfigureUART()
 
 #if defined(__AVR_ATmega88PA__)
 	UBRR0H = 0;
-	UBRR0L = 12; // 115200 baud ~ -0.17% error
-	UCSR0A = (1 << U2X0);
+	UBRR0L = 12; // 57600 baud ~ -0.1736% error
+	//UCSR0A = (1 << U2X0);
 	UCSR0B = (1 << RXEN0) | (1 << TXEN0) | (1 << RXCIE0);
 	UCSR0C = (1 << UCSZ00) | (1 << UCSZ01); // 8 bits, 1 stop bits
 #elif defined(__AVR_ATmega8A__)
 	OSCCAL = 0xAD; // calibrate to 8mhz
 	UBRRH = 0;
-	UBRRL = 25; // 38400 baud ~ -0.1667% error
-	UCSRA = (1 << U2X);
+	UBRRL = 12; // 38400 baud ~ -0.1736% error
+	//UCSRA = (1 << U2X);
 	UCSRB = (1 << RXEN) | (1 << TXEN) | (1 << RXCIE);
 	UCSRC = (1 << URSEL) | (1 << UCSZ0) | (1 << UCSZ1); // 8 bits, 1 stop bits 
 #endif
@@ -188,7 +188,8 @@ ISR(UR_RX_vect, ISR_BLOCK)
 						if(g_SerialPacketHeader.Header.Cookie)
 						{
 							g_SerialAckQueue[g_SerialAckWritePos].Header = (ResponseCodes::Ack << 4) | AckPacketFlag;
-							g_SerialAckQueue[g_SerialAckWritePos++].Cookie = g_SerialPacketHeader.Header.Cookie;
+							g_SerialAckQueue[g_SerialAckWritePos].Cookie = g_SerialPacketHeader.Header.Cookie;
+							g_SerialAckWritePos = (g_SerialAckWritePos + 1) & (AckBufferSize - 1);
 						}
 						g_SerialState = SerialState::Waiting;
 					}
@@ -197,7 +198,8 @@ ISR(UR_RX_vect, ISR_BLOCK)
 				{
 					// failure - send notification and reset
 					g_SerialAckQueue[g_SerialAckWritePos].Header = (ResponseCodes::Error << 4) | ErrorCodes::CorruptPacketHeader;
-					g_SerialAckQueue[g_SerialAckWritePos++].Cookie = 0;
+					g_SerialAckQueue[g_SerialAckWritePos].Cookie = 0;
+					g_SerialAckWritePos = (g_SerialAckWritePos + 1) & (AckBufferSize - 1);
 					g_SerialState = SerialState::Waiting;
 				}
 			}
@@ -228,14 +230,16 @@ ISR(UR_RX_vect, ISR_BLOCK)
 						if(g_SerialPacketHeader.Header.Cookie)
 						{
 							g_SerialAckQueue[g_SerialAckWritePos].Header = (ResponseCodes::Ack << 4) | AckPacketFlag;
-							g_SerialAckQueue[g_SerialAckWritePos++].Cookie = g_SerialPacketHeader.Header.Cookie;
+							g_SerialAckQueue[g_SerialAckWritePos].Cookie = g_SerialPacketHeader.Header.Cookie;
+							g_SerialAckWritePos = (g_SerialAckWritePos + 1) & (AckBufferSize - 1);
 						}
 					}
 					else
 					{
 						// failure!
 						g_SerialAckQueue[g_SerialAckWritePos].Header = (ResponseCodes::Error << 4) | ErrorCodes::CorruptPacketData;
-						g_SerialAckQueue[g_SerialAckWritePos++].Cookie = g_SerialPacketHeader.Header.Cookie;
+						g_SerialAckQueue[g_SerialAckWritePos].Cookie = g_SerialPacketHeader.Header.Cookie;
+						g_SerialAckWritePos = (g_SerialAckWritePos + 1) & (AckBufferSize - 1);
 					}
 					g_SerialState = SerialState::Waiting;
 				}
@@ -244,7 +248,8 @@ ISR(UR_RX_vect, ISR_BLOCK)
 			{
 				// this would have overflowed
 				g_SerialAckQueue[g_SerialAckWritePos].Header = (ResponseCodes::Error << 4) | ErrorCodes::ReceiveBufferOverrun;
-				g_SerialAckQueue[g_SerialAckWritePos++].Cookie = g_SerialPacketHeader.Header.Cookie;
+				g_SerialAckQueue[g_SerialAckWritePos].Cookie = g_SerialPacketHeader.Header.Cookie;
+				g_SerialAckWritePos = (g_SerialAckWritePos + 1) & (AckBufferSize - 1);
 				g_SerialState = SerialState::Waiting;
 			}
 			break;

@@ -279,6 +279,7 @@ bool ReadMemoryCommandHandler(unsigned char header, FetchByte fetch)
 	bool external = (address & RomTarget::TypeMask) != RomTarget::TypeInternal;
 	if(external)
 	{
+#ifdef ENABLE_EXTERNAL_EEPROM
 		BeginReadExternalEEPROM(address & RomTarget::ExternalMask);
 		while(dwordCount--)
 		{
@@ -287,16 +288,25 @@ bool ReadMemoryCommandHandler(unsigned char header, FetchByte fetch)
 			WriteSerialData(ReadNextByteFromExternalEEPROM(true));
 			WriteSerialData(ReadNextByteFromExternalEEPROM(dwordCount > 0));
 		}
+#else
+		while(dwordCount--)
+		{
+			WriteSerialData(0);
+			WriteSerialData(0);
+			WriteSerialData(0);
+			WriteSerialData(0);
+		}
+#endif
 	}
 	else
 	{
 		address &= RomTarget::InternalMask;
 		while(dwordCount--)
 		{
-			WriteSerialData(ReadInternalEEPROM(address++));
-			WriteSerialData(ReadInternalEEPROM(address++));
-			WriteSerialData(ReadInternalEEPROM(address++));
-			WriteSerialData(ReadInternalEEPROM(address++));
+			WriteSerialData(ReadInternalEEPROM(address++ & RomTarget::InternalMask));
+			WriteSerialData(ReadInternalEEPROM(address++ & RomTarget::InternalMask));
+			WriteSerialData(ReadInternalEEPROM(address++ & RomTarget::InternalMask));
+			WriteSerialData(ReadInternalEEPROM(address++ & RomTarget::InternalMask));
 		}
 	}
 	return true;
@@ -313,6 +323,7 @@ bool WriteMemoryCommandHandler_SerialOnly(unsigned char header, FetchByte fetch)
 	bool external = (address & RomTarget::TypeMask) != RomTarget::TypeInternal;
 	if(external)
 	{
+#ifdef ENABLE_EXTERNAL_EEPROM
 		BeginWriteExternalEEPROM(address & RomTarget::ExternalMask);
 		while(dwordCount--)
 		{
@@ -321,16 +332,25 @@ bool WriteMemoryCommandHandler_SerialOnly(unsigned char header, FetchByte fetch)
 			WriteNextByteToExternalEEPROM(fetch(true), true);
 			WriteNextByteToExternalEEPROM(fetch(dwordCount > 0), dwordCount > 0);
 		}
+#else
+		while(dwordCount--)
+		{
+			fetch(true);
+			fetch(true);
+			fetch(true);
+			fetch(dwordCount > 0);
+		}
+#endif
 	}
 	else
 	{
 		address &= RomTarget::InternalMask;
 		while(dwordCount--)
 		{
-			WriteInternalEEPROM(address++, fetch(true));
-			WriteInternalEEPROM(address++, fetch(true));
-			WriteInternalEEPROM(address++, fetch(true));
-			WriteInternalEEPROM(address++, fetch(dwordCount > 0));
+			WriteInternalEEPROM(address++ & RomTarget::InternalMask, fetch(true));
+			WriteInternalEEPROM(address++ & RomTarget::InternalMask, fetch(true));
+			WriteInternalEEPROM(address++ & RomTarget::InternalMask, fetch(true));
+			WriteInternalEEPROM(address++ & RomTarget::InternalMask, fetch(dwordCount > 0));
 		}
 	}
 	return true;
@@ -364,8 +384,12 @@ unsigned char FetchInternalEEPROM(bool moreBytes)
 
 unsigned char FetchExternalEEPROM(bool moreBytes)
 {
+#ifdef ENABLE_EXTERNAL_EEPROM
 	g_CommandReg.AnimReadPosition = ((g_CommandReg.AnimReadPosition + 1) & (EepromExternalSize - 1)) | RomTarget::TypeExternal;
 	return ReadNextByteFromExternalEEPROM(moreBytes);
+#else
+	return 0;
+#endif
 }
 
 // Helper for re-syncing after an invalid command is processed
@@ -434,6 +458,7 @@ void DispatchAnimCommand()
 
 	if(external)
 	{
+#ifdef ENABLE_EXTERNAL_EEPROM
 		BeginReadExternalEEPROM(g_CommandReg.AnimReadPosition);
 		unsigned char commandHeader = FetchExternalEEPROM(true);
 		unsigned char command = (commandHeader >> 4) & 0xF;
@@ -443,6 +468,9 @@ void DispatchAnimCommand()
 			ReadNextByteFromExternalEEPROM(false); // discard junk byte and close connection, but don't call FetchExternalEEPROM/update the read pointer
 			BadAnimPanic();
 		}
+#else
+		BadAnimPanic();
+#endif
 	}
 	else
 	{

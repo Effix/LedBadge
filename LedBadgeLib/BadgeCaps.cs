@@ -95,7 +95,7 @@ namespace LedBadgeLib
         static Badges()
         {
             B1236 = new BadgeCaps(BadgeConnection.Version, 36, 12, 2, 0, 38400);
-            B1248 = new BadgeCaps(BadgeConnection.Version, 48, 12, 2, SupportedFeatures.HardwareBrightness, 115200);
+            B1248 = new BadgeCaps(BadgeConnection.Version, 48, 12, 2, SupportedFeatures.HardwareBrightness, 57600);
         }
 
         public static BadgeCaps B1236 { get; private set; }
