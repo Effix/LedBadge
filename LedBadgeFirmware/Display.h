@@ -50,12 +50,10 @@ enum
 	BufferWidth = 36,											// pixels across
 #endif
 	BufferHeight = 12,											// pixels tall
-	BufferPixels = BufferWidth * BufferHeight,					// total pixels
 	BufferBitPlanes = 3,										// unpacked bit-planes, 2 bits -> black + 3 gray levels
 	BufferBitPlaneStride = (BufferWidth + 7) / 8,				// bit-planes are 1bbp
 	BufferBitPlaneLength = BufferBitPlaneStride * BufferHeight,	// full bit-plane size
 	BufferLength = BufferBitPlaneLength * BufferBitPlanes,		// full unpacked frame buffer size
-	BufferPackedLength = (BufferPixels + 3) / 4,				// full packed frame length (from a fill command)
 	BufferCount = 2,											// buffers in the swap chain (front/back)
 	
 	BrightnessLevels = 256										// brightness look up table size

@@ -88,17 +88,21 @@ namespace LedBadgeLib
             {
                 lock(m_lockObj)
                 {
+                    byte packetID = AvailiblePacketIds() ? m_nextPacketID : (byte)0;
                     lock(m_pendingPackets)
                     {
                         m_pendingPackets.Add(new PendingPacket
                         {
                             TimeStamp = Environment.TickCount,
                             Attempt = packet.Attempt + 1,
-                            Cookie = m_nextPacketID,
+                            Cookie = packetID,
                             Packet = packet.Packet
                         });
                     }
-                    SendPacket(packet.Packet, 0, (byte)packet.Packet.Length, true, false);
+                    if(packetID != 0)
+                    {
+                        SendPacket(packet.Packet, 0, (byte)packet.Packet.Length, true, false);
+                    }
                 }
             }
         }
@@ -113,8 +117,10 @@ namespace LedBadgeLib
             lock(m_lockObj)
             {
                 //
+                byte packetID = 0;
                 if(ensureDelivery)
                 {
+                    packetID = AvailiblePacketIds() ? m_nextPacketID : (byte)0;
                     byte[] bufferCopy = new byte[length];
                     Array.Copy(buffer, offset, bufferCopy, 0, length);
                     lock(m_pendingPackets)
@@ -123,13 +129,15 @@ namespace LedBadgeLib
                         {
                             TimeStamp = Environment.TickCount,
                             Attempt = attempt,
-                            Cookie = m_nextPacketID,
+                            Cookie = packetID,
                             Packet = bufferCopy
                         });
                     }
                 }
-
-                SendPacket(buffer, offset, length, ensureDelivery, flush);
+                if(!ensureDelivery || packetID != 0)
+                {
+                    SendPacket(buffer, offset, length, ensureDelivery, flush);
+                }
             }
         }
 
@@ -328,6 +336,14 @@ namespace LedBadgeLib
                 }
             }
             return packet;
+        }
+
+        bool AvailiblePacketIds()
+        {
+            lock(m_availableIds)
+            {
+                return m_availableIds.Count > 0;
+            }
         }
 
         byte AcquirePacketId()

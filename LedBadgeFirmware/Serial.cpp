@@ -221,7 +221,7 @@ ISR(UR_RX_vect, ISR_BLOCK)
 				// commit, if we have completed the data transfer
 				if(--g_SerialPacketHeader.Header.Length == 0)
 				{
-					if(g_SerialRunningCRC == 0 || g_SerialRunningCRC == g_SerialPacketHeader.Header.PacketCRC)
+					if(g_SerialPacketHeader.Header.PacketCRC == 0 || g_SerialRunningCRC == g_SerialPacketHeader.Header.PacketCRC)
 					{
 						g_SerialWritePos = g_SerialPendingWritePos;
 						g_SerialCount = g_SerialPendingCount;

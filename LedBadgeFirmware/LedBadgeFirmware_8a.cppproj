@@ -123,7 +123,7 @@
       <Value>.serialBuffer=0x000100</Value>
       <Value>.buffer0=0x000200</Value>
       <Value>.buffer1=0x000300</Value>
-      <Value>.data=0x0003A2</Value>
+      <Value>.data=0x0003B4</Value>
     </ListValues>
   </avrgcccpp.linker.memorysettings.Sram>
 </AvrGccCpp>

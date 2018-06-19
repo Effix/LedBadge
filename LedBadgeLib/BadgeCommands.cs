@@ -89,7 +89,7 @@ namespace LedBadgeLib
             stream.WriteByte((byte)(((byte)CommandCodes.WriteRect << 4) | (((byte)targetBuffer & 0x3) << 2) | ((byte)format & 0x3)));
             stream.WriteByte((byte)((x << 4) | (y & 0xF)));
             stream.WriteByte((byte)((width << 4) | (height & 0xF)));
-            bufferSize = width * height * (int)format;
+            bufferSize = width * height * ((int)format + 1);
         }
 
         public static void CreateCopyRect(Stream stream, Target sourceBuffer, Target targetBuffer, byte srcX, byte srcY, byte dstX, byte dstY, byte width, byte height)
