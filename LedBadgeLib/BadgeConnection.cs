@@ -249,9 +249,16 @@ namespace LedBadgeLib
                             PendingPacket packet = RetirePendingPacket(fullResponse[1]);
                             if(packet.Packet != null)
                             {
-                                lock(m_resendPackets)
+                                if(packet.Attempt >= m_retryMax)
                                 {
-                                    m_resendPackets.Add(packet);
+                                    m_dispatcher.NotifySendFailure(this, packet.Packet);
+                                }
+                                else
+                                {
+                                    lock(m_resendPackets)
+                                    {
+                                        m_resendPackets.Add(packet);
+                                    }
                                 }
                             }
                         }

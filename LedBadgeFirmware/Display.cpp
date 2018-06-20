@@ -670,7 +670,7 @@ void RefreshDisplay()
 	// disable output
 	PORTB |= (1 << PORTB5);
 	
-	if(g_DisplayReg.SoftwarePWMHold != 0)
+	/*if(g_DisplayReg.SoftwarePWMHold != 0)
 	{
 		if(g_DisplayReg.SoftwarePWMHold != 0xFF)
 		{
@@ -679,7 +679,7 @@ void RefreshDisplay()
 		
 		// early out of the state machine
 		return;
-	}
+	}*/
 	
 	unsigned char portB = PORTB;
 	unsigned char portD = PORTD;

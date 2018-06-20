@@ -27,7 +27,7 @@ void WriteInternalEEPROM(unsigned int addr, unsigned char data)
 	EEAR = addr;
 	EEDR = data;
 	
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+	ATOMIC_BLOCK(ATOMIC_FORCEON)
 	{
 		EECR |= (1 << EE_FLUSH_DATA);
 		EECR |= (1 << EE_PENDING_BUSY);

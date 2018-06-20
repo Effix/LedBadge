@@ -104,7 +104,7 @@ unsigned char ReadSerialData()
 	}
 	
 	unsigned char data;	
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+	ATOMIC_BLOCK(ATOMIC_FORCEON)
 	{
 		--g_SerialCount;
 		--g_SerialPendingCount;
@@ -127,7 +127,7 @@ void WriteSerialData(unsigned char data)
 unsigned char GetPendingSerialDataSize()
 {
 	unsigned char count;
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+	ATOMIC_BLOCK(ATOMIC_FORCEON)
 	{
 		count = g_SerialCount;
 	}
@@ -212,7 +212,7 @@ ISR(UR_RX_vect, ISR_BLOCK)
 		}
 		case SerialState::Body:
 		{
-			if(g_SerialPendingCount != ~0)
+			if(g_SerialPendingCount != 0xFF)
 			{
 				g_SerialBuffer[g_SerialPendingWritePos++] = s_bufferData;
 				g_SerialRunningCRC = _crc_ccitt_update(g_SerialRunningCRC, s_bufferData);
