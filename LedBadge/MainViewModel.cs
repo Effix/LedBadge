@@ -130,6 +130,7 @@ namespace LedBadge
             }
 
             FrameBuffer = new WriteableBitmap(device.Width, device.Height, 96, 96, PixelFormats.Gray8, null);
+            RaiseProperyChanged("FrameBuffer");
 
             m_messageScene = new LedBadgeLib.MessageQueueVisual(device);
             m_messageScene.GetTransition = (a, b) =>
@@ -189,7 +190,7 @@ namespace LedBadge
             {
                 Dispatcher.InvokeAsync(() =>
                 {
-                    LedBadgeLib.WPF.ImageFromPackedBuffer(FrameBuffer, args.Frame.PackedBuffer, 0, RotateFrame, args.Frame.WidthInBlocks, args.Frame.Height, LedBadgeLib.PixelFormat.TwoBits);
+                    LedBadgeLib.WPF.ImageFromPackedBuffer(FrameBuffer, args.Frame.PackedBuffer, 0, RotateFrame, args.Frame.IntermediateStride, args.Frame.WidthInPixels, args.Frame.Height, LedBadgeLib.PixelFormat.TwoBits);
 
                     if(fpsUpdate)
                     {
@@ -227,9 +228,9 @@ namespace LedBadge
             }
 
             LedBadgeLib.BadgeCommands.CreateFillRect(commands, LedBadgeLib.Target.BackBuffer, 0, 2, 1, 4, new LedBadgeLib.Pix2x8(0x0000));
-            LedBadgeLib.BadgeCommands.CreateFillRect(commands, LedBadgeLib.Target.BackBuffer, 8, 2, 1, 4, new LedBadgeLib.Pix2x8(0x00FF));
-            LedBadgeLib.BadgeCommands.CreateFillRect(commands, LedBadgeLib.Target.BackBuffer, 16, 2, 1, 4, new LedBadgeLib.Pix2x8(0xFF00));
-            LedBadgeLib.BadgeCommands.CreateFillRect(commands, LedBadgeLib.Target.BackBuffer, 24, 2, 1, 4, new LedBadgeLib.Pix2x8(0xFFFF));
+            LedBadgeLib.BadgeCommands.CreateFillRect(commands, LedBadgeLib.Target.BackBuffer, 1, 2, 1, 4, new LedBadgeLib.Pix2x8(0x00FF));
+            LedBadgeLib.BadgeCommands.CreateFillRect(commands, LedBadgeLib.Target.BackBuffer, 2, 2, 1, 4, new LedBadgeLib.Pix2x8(0xFF00));
+            LedBadgeLib.BadgeCommands.CreateFillRect(commands, LedBadgeLib.Target.BackBuffer, 3, 2, 1, 4, new LedBadgeLib.Pix2x8(0xFFFF));
 
             LedBadgeLib.BadgeCommands.CreateCopyRect(commands, LedBadgeLib.Target.BackBuffer, LedBadgeLib.Target.BackBuffer, 0, 0, 0, 6, (byte)device.WidthInBlocks, 6);
 
@@ -248,11 +249,16 @@ namespace LedBadge
 
         void TestFrame(LedBadgeLib.BadgeRenderTarget frame)
         {
-            LedBadgeLib.ScreenCapture.ReadScreenAtMousePosition(frame.IntermediateImage, frame.WidthInPixels, frame.Height);
+            LedBadgeLib.ScreenCapture.ReadScreenAtMousePosition(frame.IntermediateImage, frame.IntermediateStride, frame.WidthInPixels, frame.Height);
         }
 
         void OnBadgeResponse(object sender, LedBadgeLib.BadgeResponseEventArgs args)
         {
+            if((args.Code == LedBadgeLib.ResponseCodes.Setting) && ((LedBadgeLib.SettingValue)(args.Response[0] & 0xF) == LedBadgeLib.SettingValue.Caps))
+            {
+                Dispatcher.InvokeAsync(() => InitScene(args.FromBadge.Device), DispatcherPriority.ApplicationIdle);
+            }
+
             Dispatcher.InvokeAsync(() => LogMessage(args.Code, args.Response), DispatcherPriority.ApplicationIdle);
         }
 
@@ -384,10 +390,11 @@ namespace LedBadge
                     byte height; 
                     byte bufferLength;
                     int offset = LedBadgeLib.BadgeResponses.DecodePixels(response, 0, out format, out widthInBlocks, out height, out bufferLength);
+                    int stride = widthInBlocks * LedBadgeLib.BadgeCaps.PixelsPerBlockBitPlane;
                     var img = new System.Windows.Controls.Image()
                     {
-                        Source = LedBadgeLib.WPF.ImageFromPackedBuffer(response, offset, RotateFrame, widthInBlocks, height, format),
-                        Width = widthInBlocks * LedBadgeLib.BadgeCaps.PixelsPerBlockBitPlane * scale,
+                        Source = LedBadgeLib.WPF.ImageFromPackedBuffer(response, offset, RotateFrame, stride, stride, height, format),
+                        Width = stride * scale,
                         Height = height * scale,
                         SnapsToDevicePixels = true,
                         HorizontalAlignment = System.Windows.HorizontalAlignment.Left
@@ -397,7 +404,7 @@ namespace LedBadge
                     {
                         Children = 
                         {
-                            new TextBlock() { Text = string.Format("{0} [{1} {2}x{3}, {4}b]", code, format, widthInBlocks*LedBadgeLib.BadgeCaps.PixelsPerBlockBitPlane, height, bufferLength) },
+                            new TextBlock() { Text = string.Format("{0} [{1} {2}x{3}, {4}b]", code, format, stride, height, bufferLength) },
                             img 
                         }
                     });
@@ -479,7 +486,9 @@ namespace LedBadge
             {
                 try
                 {
-                    m_badgePump.Connect(SelectedComPort, LedBadgeLib.Badges.B1248);
+                    var badge = LedBadgeLib.Badges.B1236;
+                    m_badgePump.Connect(SelectedComPort, badge);
+                    InitScene(badge);
                     LogMessage("Connected to " + SelectedComPort);
                 }
                 catch(Exception e)

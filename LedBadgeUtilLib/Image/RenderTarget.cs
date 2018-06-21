@@ -11,15 +11,16 @@ namespace LedBadgeLib
         public BadgeRenderTarget(int widthInPixels, int height, PixelFormat packedFormat, byte[] intermediateImage = null)
         {
             WidthInBlocks = BadgeImage.CalculatePackedPixelBlocks(widthInPixels);
-            WidthInPixels = WidthInBlocks * BadgeCaps.PixelsPerBlockBitPlane;
+            WidthInPixels = widthInPixels;
             Height = height;
             PackedFormat = packedFormat;
-            IntermediateImage = intermediateImage ?? new byte[WidthInPixels * height];
+            IntermediateStride = WidthInBlocks * BadgeCaps.PixelsPerBlockBitPlane;
+            IntermediateImage = intermediateImage ?? new byte[IntermediateStride * height];
         }
 
         public void DitherImage()
         {
-            BadgeImage.DitherImage(IntermediateImage, WidthInPixels, Height);
+            BadgeImage.DitherImage(IntermediateImage, IntermediateStride, WidthInPixels, Height);
         }
 
         public void PackBuffer(bool rotate)
@@ -43,6 +44,7 @@ namespace LedBadgeLib
         public int WidthInPixels { get; private set; }
         public int Height { get; private set; }
         public PixelFormat PackedFormat { get; private set; }
+        public int IntermediateStride { get; private set; }
         public byte[] IntermediateImage { get; set; }
         public byte[] PackedBuffer { get; set; }
     }

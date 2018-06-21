@@ -11,7 +11,7 @@ namespace LedBadgeLib
 {
     public static class GDI
     {
-        public static void ReadBitmap(byte[] intermediateImage, Bitmap bitmap, int srcX, int srcY, int width, int height)
+        public static void ReadBitmap(byte[] intermediateImage, Bitmap bitmap, int srcX, int srcY, int stride, int width, int height)
         {
             var data = bitmap.LockBits(
                 new System.Drawing.Rectangle(srcX, srcY, width, height), 
@@ -19,10 +19,10 @@ namespace LedBadgeLib
             try
             {
                 IntPtr p0 = data.Scan0;
-                for(int y = 0, i = 0; y < height; ++y, p0 += data.Stride)
+                for(int y = 0, i0 = 0; y < height; ++y, p0 += data.Stride, i0 += stride)
                 {
                     IntPtr p = p0;
-                    for(int x = 0; x < width; ++x, ++i, p += 4)
+                    for(int x = 0, i = i0; x < width; ++x, ++i, p += 4)
                     {
                         int val = Marshal.ReadInt32(p);
                         intermediateImage[i] = BadgeImage.ToGray((val >> 16) & 0xFF, (val >> 8) & 0xFF, (val >> 0) & 0xFF);

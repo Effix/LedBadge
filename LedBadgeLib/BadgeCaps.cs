@@ -23,7 +23,7 @@ namespace LedBadgeLib
             BytesPerBlock = bitDepth;
             FrameStride = WidthInBlocks * BytesPerBlock;
             FrameSize = FrameStride * Height;
-            IntermediateFrameStride = Width;
+            IntermediateFrameStride = WidthInBlocks * PixelsPerBlockBitPlane;
             IntermediateFrameSize = IntermediateFrameStride * Height;
             SupportedFeatures = caps;
             Baud = baud;

@@ -13,52 +13,64 @@ namespace LedBadgeLib
 {
     public static class WPF
     {
-        public static void ReadImage(byte[] intermediateImage, BitmapSource src, int srcX, int srcY, int width, int height)
+        public static void ReadImage(byte[] intermediateImage, BitmapSource src, int srcX, int srcY, int stride, int width, int height)
         {
             if(src.Format == PixelFormats.Gray8)
             {
-                ReadGrayImage(intermediateImage, src, srcX, srcY, width, height);
+                ReadGrayImage(intermediateImage, src, srcX, srcY, stride, width, height);
             }
             else
             {
-                Read32BitImage(intermediateImage, src, srcX, srcY, width, height);
+                Read32BitImage(intermediateImage, src, srcX, srcY, stride, width, height);
             }
         }
 
-        public static void Read32BitImage(byte[] intermediateImage, BitmapSource src, int srcX, int srcY, int width, int height)
+        public static void Read32BitImage(byte[] intermediateImage, BitmapSource src, int srcX, int srcY, int stride, int width, int height)
         {
             System.Diagnostics.Debug.Assert(src.Format.BitsPerPixel == 32);
 
             int[] pix = new int[width * height];
             src.CopyPixels(new Int32Rect(srcX, srcY, width, height), pix, width * sizeof(int), 0);
 
-            for(int i = 0; i < pix.Length; ++i)
+            int si = 0;
+            int di0 = 0;
+            for(int y = 0; y < height; ++y, di0 += stride)
             {
-                int p = pix[i];
-                intermediateImage[i] = BadgeImage.ToGray((p >> 16) & 0xFF, (p >> 8) & 0xFF, (p >> 0) & 0xFF);
+                int di = di0;
+                for(int x = 0; x < width; ++x, ++si, ++di)
+                {
+                    int p = pix[si];
+                    intermediateImage[di] = BadgeImage.ToGray((p >> 16) & 0xFF, (p >> 8) & 0xFF, (p >> 0) & 0xFF);
+                }
             }
         }
 
-        public static void Read32BitImage(byte[] intermediateImage, byte[] alphaMask, BitmapSource src, int srcX, int srcY, int width, int height)
+        public static void Read32BitImage(byte[] intermediateImage, byte[] alphaMask, BitmapSource src, int srcX, int srcY, int stride, int width, int height)
         {
             System.Diagnostics.Debug.Assert(src.Format.BitsPerPixel == 32);
 
             int[] pix = new int[width * height];
             src.CopyPixels(new Int32Rect(srcX, srcY, width, height), pix, width * sizeof(int), 0);
 
-            for(int i = 0; i < pix.Length; ++i)
+            int si = 0;
+            int di0 = 0;
+            for(int y = 0; y < height; ++y, di0 += stride)
             {
-                int p = pix[i];
-                intermediateImage[i] = BadgeImage.ToGray((p >> 16) & 0xFF, (p >> 8) & 0xFF, (p >> 0) & 0xFF);
-                alphaMask[i] = (byte)(p >> 24);
+                int di = di0;
+                for(int x = 0; x < width; ++x, ++si, ++di)
+                {
+                    int p = pix[si];
+                    intermediateImage[di] = BadgeImage.ToGray((p >> 16) & 0xFF, (p >> 8) & 0xFF, (p >> 0) & 0xFF);
+                    alphaMask[di] = (byte)(p >> 24);
+                }
             }
         }
 
-        public static void ReadGrayImage(byte[] intermediateImage, BitmapSource src, int srcX, int srcY, int width, int height)
+        public static void ReadGrayImage(byte[] intermediateImage, BitmapSource src, int srcX, int srcY, int stride, int width, int height)
         {
             System.Diagnostics.Debug.Assert(src.Format == PixelFormats.Gray8);
 
-            src.CopyPixels(new Int32Rect(srcX, srcY, width, height), intermediateImage, width * sizeof(byte), 0);
+            src.CopyPixels(new Int32Rect(srcX, srcY, width, height), intermediateImage, stride, 0);
         }
 
         public static Color ColorFromPix(byte value)
@@ -67,34 +79,34 @@ namespace LedBadgeLib
             return Color.FromRgb(g, g, g);
         }
 
-        public static BitmapSource ImageFromIntermediate(byte[] intermediateImage, int widthInPixels, int widthInBlocks, int height)
+        public static BitmapSource ImageFromIntermediate(byte[] intermediateImage, int stride, int width, int height)
         {
-            var image = new WriteableBitmap(widthInPixels, height, 96, 96, PixelFormats.Gray8, null);
-            ImageFromIntermediate(image, intermediateImage, widthInPixels, widthInBlocks, height);
+            var image = new WriteableBitmap(width, height, 96, 96, PixelFormats.Gray8, null);
+            ImageFromIntermediate(image, intermediateImage, stride, width, height);
             return image;
         }
 
-        public static void ImageFromIntermediate(WriteableBitmap target, byte[] intermediateImage, int widthInPixels, int widthInBlocks, int height)
+        public static void ImageFromIntermediate(WriteableBitmap target, byte[] intermediateImage, int stride, int width, int height)
         {
-            target.WritePixels(new Int32Rect(0, 0, widthInPixels, height), intermediateImage, widthInBlocks * LedBadgeLib.BadgeCaps.PixelsPerBlockBitPlane, 0);
+            target.WritePixels(new Int32Rect(0, 0, width, height), intermediateImage, stride, 0);
         }
 
-        public static BitmapSource ImageFromPackedBuffer(byte[] packedBuffer, int offset, bool rotate, int widthInPixels, int widthInBlocks, int height, PixelFormat pixelFormat)
+        public static BitmapSource ImageFromPackedBuffer(byte[] packedBuffer, int offset, bool rotate, int stride, int width, int height, PixelFormat pixelFormat)
         {
-            if(widthInBlocks > 0 && height > 0)
+            if(width > 0 && height > 0)
             {
-                var image = new WriteableBitmap(widthInPixels, height, 96, 96, PixelFormats.Gray8, null);
-                ImageFromPackedBuffer(image, packedBuffer, offset, rotate, widthInPixels, widthInBlocks, height, pixelFormat);
+                var image = new WriteableBitmap(width, height, 96, 96, PixelFormats.Gray8, null);
+                ImageFromPackedBuffer(image, packedBuffer, offset, rotate, stride, width, height, pixelFormat);
                 return image;
             }
             return null;
         }
 
-        public static void ImageFromPackedBuffer(WriteableBitmap target, byte[] packedBuffer, int offset, bool rotate, int widthInPixels, int widthInBlocks, int height, PixelFormat pixelFormat, byte[] tempIntermediate = null)
+        public static void ImageFromPackedBuffer(WriteableBitmap target, byte[] packedBuffer, int offset, bool rotate, int stride, int width, int height, PixelFormat pixelFormat, byte[] tempIntermediate = null)
         {
-            var intermediateImage = tempIntermediate ?? new byte[widthInBlocks * LedBadgeLib.BadgeCaps.PixelsPerBlockBitPlane * height];
+            var intermediateImage = tempIntermediate ?? new byte[stride * height];
             BadgeImage.PackedBufferToIntermediateImage(packedBuffer, intermediateImage, pixelFormat, offset, rotate);
-            ImageFromIntermediate(target, intermediateImage, widthInPixels, widthInBlocks, height);
+            ImageFromIntermediate(target, intermediateImage, stride, width, height);
         }
 
         public static FrameworkElement MakeSingleLineItem(BadgeCaps device, string message, bool halfSize = false, bool fullWidth = true)

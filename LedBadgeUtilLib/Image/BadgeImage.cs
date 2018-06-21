@@ -214,11 +214,12 @@ namespace LedBadgeLib
         }
 
         public static void Blit(
-            byte[] intermediateImageTarget, int targetWidth, int targetHeight,
-            byte[] intermediateImageSource, int sourceWidth, int sourceHeight,
+            byte[] intermediateImageTarget, int targetStride, int targetWidth, int targetHeight,
+            byte[] intermediateImageSource, int sourceStride, int sourceWidth, int sourceHeight,
             int destX, int destY, int srcX, int srcY, int width, int height)
         {
             if(intermediateImageTarget.Length == intermediateImageSource.Length &&
+                targetStride == sourceStride &&
                 targetWidth == sourceWidth &&
                 targetHeight == sourceHeight &&
                 targetWidth == width &&
@@ -232,8 +233,8 @@ namespace LedBadgeLib
             }
             else if(ClipRects(targetWidth, targetHeight, sourceWidth, sourceHeight, ref destX, ref destY, ref srcX, ref srcY, ref width, ref height))
             {
-                int s0 = srcY * sourceWidth + srcX;
-                int d0 = destY * targetWidth + destX;
+                int s0 = srcY * sourceStride + srcX;
+                int d0 = destY * targetStride + destX;
                 for(int y = 0; y < height; ++y)
                 {
                     int si = s0;
@@ -242,21 +243,21 @@ namespace LedBadgeLib
                     {
                         intermediateImageTarget[di++] = intermediateImageSource[si++];
                     }
-                    s0 += sourceWidth;
-                    d0 += targetWidth;
+                    s0 += sourceStride;
+                    d0 += targetStride;
                 }
             }
         }
 
         public static void Blit(
-            byte[] intermediateImageTarget, int targetWidth, int targetHeight,
-            byte[] intermediateImageSource, byte[] sourceAlphaMask, int sourceWidth, int sourceHeight,
+            byte[] intermediateImageTarget, int targetStride, int targetWidth, int targetHeight,
+            byte[] intermediateImageSource, byte[] sourceAlphaMask, int sourceStride, int sourceWidth, int sourceHeight,
             int destX, int destY, int srcX, int srcY, int width, int height)
         {
             if(ClipRects(targetWidth, targetHeight, sourceWidth, sourceHeight, ref destX, ref destY, ref srcX, ref srcY, ref width, ref height))
             {
-                int s0 = srcY * sourceWidth + srcX;
-                int d0 = destY * targetWidth + destX;
+                int s0 = srcY * sourceStride + srcX;
+                int d0 = destY * targetStride + destX;
                 for(int y = 0; y < height; ++y)
                 {
                     int si = s0;
@@ -274,17 +275,17 @@ namespace LedBadgeLib
                             intermediateImageTarget[di] = (byte)((intermediateImageTarget[di] * (255 - sa) + intermediateImageSource[si]) / 255);
                         }
                     }
-                    s0 += sourceWidth;
-                    d0 += targetWidth;
+                    s0 += sourceStride;
+                    d0 += targetStride;
                 }
             }
         }
 
-        public static void DitherImage(byte[] intermediateImage, int width, int height)
+        public static void DitherImage(byte[] intermediateImage, int stride, int width, int height)
         {
-            for(int y = 0, srcI = 0; y < height; ++y)
+            for(int y = 0, srcIy = 0; y < height; ++y, srcIy += stride)
             {
-                for(int x = 0; x < width; ++x, ++srcI)
+                for(int x = 0, srcI = srcIy; x < width; ++x, ++srcI)
                 {
                     int p = intermediateImage[srcI];
 
@@ -303,7 +304,7 @@ namespace LedBadgeLib
                         if(ex >= 0 && ey >= 0 && ex < width && ey < height)
                         {
                             int weightedError = (scaledError * e.Item3) >> 10;
-                            int diffusedIndex = ey * width + ex;
+                            int diffusedIndex = ey * stride + ex;
 
                             int newValue = intermediateImage[diffusedIndex] + weightedError;
                             if(newValue < 0)

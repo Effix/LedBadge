@@ -56,15 +56,15 @@ namespace LedBadgeLib
             if(EnableBlend)
             {
                 BadgeImage.Blit(
-                    rt.IntermediateImage, rt.WidthInPixels, rt.Height,
-                    m_cachedIntermediate.IntermediateImage, m_alphaMask, m_cachedIntermediate.WidthInPixels, m_cachedIntermediate.Height,
+                    rt.IntermediateImage, rt.IntermediateStride, rt.WidthInPixels, rt.Height,
+                    m_cachedIntermediate.IntermediateImage, m_alphaMask, m_cachedIntermediate.IntermediateStride, m_cachedIntermediate.WidthInPixels, m_cachedIntermediate.Height,
                     parentRenderX + RenderX, parentRenderY + RenderY, ClipX, ClipY, ClipWidth, ClipHeight);
             }
             else
             {
                 BadgeImage.Blit(
-                    rt.IntermediateImage, rt.WidthInPixels, rt.Height,
-                    m_cachedIntermediate.IntermediateImage, m_cachedIntermediate.WidthInPixels, m_cachedIntermediate.Height,
+                    rt.IntermediateImage, rt.IntermediateStride, rt.WidthInPixels, rt.Height,
+                    m_cachedIntermediate.IntermediateImage, m_cachedIntermediate.IntermediateStride, m_cachedIntermediate.WidthInPixels, m_cachedIntermediate.Height,
                     parentRenderX + RenderX, parentRenderY + RenderY, ClipX, ClipY, ClipWidth, ClipHeight);
             }
         }

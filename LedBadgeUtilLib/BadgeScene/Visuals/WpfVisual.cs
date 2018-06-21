@@ -82,15 +82,15 @@ namespace LedBadgeLib
             if(EnableBlend)
             {
                 BadgeImage.Blit(
-                    rt.IntermediateImage, rt.WidthInPixels, rt.Height,
-                    m_cachedIntermediate.IntermediateImage, m_alphaMask, m_cachedIntermediate.WidthInPixels, m_cachedIntermediate.Height,
+                    rt.IntermediateImage, rt.IntermediateStride, rt.WidthInPixels, rt.Height,
+                    m_cachedIntermediate.IntermediateImage, m_alphaMask, m_cachedIntermediate.IntermediateStride, m_cachedIntermediate.WidthInPixels, m_cachedIntermediate.Height,
                     parentRenderX + RenderX, parentRenderY + RenderY, ClipX, ClipY, ClipWidth, ClipHeight);
             }
             else
             {
                 BadgeImage.Blit(
-                    rt.IntermediateImage, rt.WidthInPixels, rt.Height,
-                    m_cachedIntermediate.IntermediateImage, m_cachedIntermediate.WidthInPixels, m_cachedIntermediate.Height,
+                    rt.IntermediateImage, rt.IntermediateStride, rt.WidthInPixels, rt.Height,
+                    m_cachedIntermediate.IntermediateImage, m_cachedIntermediate.IntermediateStride, m_cachedIntermediate.WidthInPixels, m_cachedIntermediate.Height,
                     parentRenderX + RenderX, parentRenderY + RenderY, ClipX, ClipY, ClipWidth, ClipHeight);
             }
         }
@@ -110,12 +110,12 @@ namespace LedBadgeLib
                     {
                         m_alphaMask = new byte[m_cachedIntermediate.IntermediateImage.Length];
                     }
-                    WPF.Read32BitImage(m_cachedIntermediate.IntermediateImage, m_alphaMask, m_renderTarget, 0, 0, m_cachedIntermediate.WidthInPixels, m_cachedIntermediate.Height);
+                    WPF.Read32BitImage(m_cachedIntermediate.IntermediateImage, m_alphaMask, m_renderTarget, 0, 0, m_cachedIntermediate.IntermediateStride, m_cachedIntermediate.WidthInPixels, m_cachedIntermediate.Height);
                 }
                 else
                 {
                     m_alphaMask = null;
-                    WPF.Read32BitImage(m_cachedIntermediate.IntermediateImage, m_renderTarget, 0, 0, m_cachedIntermediate.WidthInPixels, m_cachedIntermediate.Height);
+                    WPF.Read32BitImage(m_cachedIntermediate.IntermediateImage, m_renderTarget, 0, 0, m_cachedIntermediate.IntermediateStride, m_cachedIntermediate.WidthInPixels, m_cachedIntermediate.Height);
                     if(Dither)
                     {
                         m_cachedIntermediate.DitherImage();

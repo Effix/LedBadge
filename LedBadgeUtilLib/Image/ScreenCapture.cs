@@ -10,13 +10,13 @@ namespace LedBadgeLib
 {
     public static class ScreenCapture
     {
-        public static void ReadScreenAtMousePosition(byte[] intermediateImage, int width, int height)
+        public static void ReadScreenAtMousePosition(byte[] intermediateImage, int stride, int width, int height)
         {
             var pos = ScreenCapture.GetMousePosition();
-            ReadScreen(intermediateImage, pos.X, pos.Y, width, height);
+            ReadScreen(intermediateImage, pos.X, pos.Y, stride, width, height);
         }
 
-        public static void ReadScreen(byte[] intermediateImage, int srcX, int srcY, int width, int height)
+        public static void ReadScreen(byte[] intermediateImage, int srcX, int srcY, int stride, int width, int height)
         {
             var pos = ScreenCapture.GetMousePosition();
             using(var b = ScreenCapture.Capture(
@@ -24,7 +24,7 @@ namespace LedBadgeLib
                 (int)srcY - height / 2, 
                 width, height))
             {
-                GDI.ReadBitmap(intermediateImage, b, 0, 0, width, height);
+                GDI.ReadBitmap(intermediateImage, b, 0, 0, stride, width, height);
             }
         }
 
