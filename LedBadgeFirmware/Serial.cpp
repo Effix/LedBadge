@@ -6,7 +6,7 @@
 
 enum
 {
-	AckBufferSize = 8,
+	AckBufferSize = 16,
 	AckPacketFlag = (0)
 };
 
@@ -47,15 +47,15 @@ static PendingAck g_SerialAckQueue[AckBufferSize];
 static volatile unsigned char g_SerialAckReadPos = 0;
 static volatile unsigned char g_SerialAckWritePos = 0;
 
-static SerialState::Enum g_SerialState = SerialState::Waiting;
-static union
+static volatile SerialState::Enum g_SerialState = SerialState::Waiting;
+static volatile union
 {
 	PacketHeader Header;
 	unsigned char Buffer[4];
 } g_SerialPacketHeader;
-static unsigned char g_SerialPacketHeaderBufferPos = 0;
-static unsigned char g_SerialHeaderRunningCRC = 0;
-static unsigned int g_SerialRunningCRC = 0;
+static volatile unsigned char g_SerialPacketHeaderBufferPos = 0;
+static volatile unsigned char g_SerialHeaderRunningCRC = 0;
+static volatile unsigned int g_SerialRunningCRC = 0;
 
 #if defined(__AVR_ATmega88PA__)
 	#define UR_CTRL_REG_A	UCSR0A
@@ -180,6 +180,7 @@ ISR(UR_RX_vect, ISR_BLOCK)
 						// get ready for data
 						g_SerialRunningCRC = 0xFFFF;
 						g_SerialPendingWritePos = g_SerialWritePos;
+						g_SerialPendingCount = g_SerialCount;
 						g_SerialState = SerialState::Body;
 					}
 					else
