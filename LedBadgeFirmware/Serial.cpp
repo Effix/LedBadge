@@ -84,7 +84,6 @@ void ConfigureUART()
 	UCSR0B = (1 << RXEN0) | (1 << TXEN0) | (1 << RXCIE0);
 	UCSR0C = (1 << UCSZ00) | (1 << UCSZ01); // 8 bits, 1 stop bits
 #elif defined(__AVR_ATmega8A__)
-	OSCCAL = 0xAD; // calibrate to 8mhz
 	UBRRH = 0;
 	UBRRL = 12; // 38400 baud ~ -0.1736% error
 	//UCSRA = (1 << U2X);
@@ -126,12 +125,7 @@ void WriteSerialData(unsigned char data)
 // Gets the total number of bytes that can be read without blocking
 unsigned char GetPendingSerialDataSize()
 {
-	unsigned char count;
-	ATOMIC_BLOCK(ATOMIC_FORCEON)
-	{
-		count = g_SerialCount;
-	}
-	return count;
+	return g_SerialCount;
 }
 
 // Call periodically from the main thread to send along queued up responses

@@ -188,7 +188,7 @@ void SolidFill(unsigned char x, unsigned char y, unsigned char width, unsigned c
 // The x and width parameters are in blocks, not pixels
 void Fill(unsigned char x, unsigned char y, unsigned char width, unsigned char height, PixelFormat::Enum format, FetchByte fetch, unsigned char *buffer)
 {
-	unsigned int count = width * height;
+	unsigned char count = width * height;
 	for(unsigned char iy = y, sy = y + height; iy < sy; ++iy)
 	{
 		for(unsigned char ix = x, sx = x + width; ix < sx; ++ix)
@@ -196,13 +196,13 @@ void Fill(unsigned char x, unsigned char y, unsigned char width, unsigned char h
 			Pix2x8 data;
 			if(format == PixelFormat::OneBit)
 			{
-				data = fetch(--count > 0);
+				data = fetch((--count) > 0);
 				data = (data << 8) | data;
 			}
 			else
 			{
 				data = fetch(true);
-				data = (data << 8) | fetch(--count > 0);
+				data = (data << 8) | fetch((--count) > 0);
 			}
 			
 			SetPixBlock(ix, iy, data, buffer);
@@ -447,6 +447,7 @@ void ConfigureDisplay()
 	SetBrightnessLevelRegisters(0);
 	
 	// refresh timer
+	TCCR2A |= (1 << WGM21);
 	TCCR2B |= (1 << CS21);
 	OCR2A = 336 / 8; // ~186hz @ 12mhz
 	TIMSK2 |= (1 << OCIE2A);
@@ -464,7 +465,8 @@ void ConfigureDisplay()
 	
 	// refresh timer
 	OCR2 = 352 / 8; // ~236hz @ 8mhz
-	TCCR2 |= (1 << CS21);
+	//OCR2 = 440 / 8; // ~188hz @ 8mhz
+	TCCR2 |= (1 << WGM21) | (1 << CS21);
 	TIMSK |= (1 << OCIE2);
 #endif
 
@@ -498,7 +500,12 @@ void EnableDisplay(bool enable)
 }
 
 // Updates one segment of the display (one half a a row)
-void RefreshDisplay()
+//void RefreshDisplay()
+#if defined(__AVR_ATmega88PA__)
+ISR(TIMER2_COMPA_vect, ISR_BLOCK)
+#elif defined(__AVR_ATmega8A__)
+ISR(TIMER2_COMP_vect, ISR_BLOCK)
+#endif
 {
 	unsigned char y = g_RowDitherTable[g_DisplayReg.Y];
 	g_DisplayReg.BufferP = g_DisplayReg.FrontBuffer + 
@@ -799,15 +806,4 @@ void RefreshDisplay()
 			}
 		}
 	}
-}
-
-// Interrupt handler for timer to ensure that the display updates are regular and not delayed by any io or command processing
-#if defined(__AVR_ATmega88PA__)
-ISR(TIMER2_COMPA_vect, ISR_BLOCK)
-#elif defined(__AVR_ATmega8A__)
-ISR(TIMER2_COMP_vect, ISR_BLOCK)
-#endif
-{
-	RefreshDisplay();
-	TCNT2 = 0;
 }
