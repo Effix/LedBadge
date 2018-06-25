@@ -57,37 +57,37 @@ namespace LedBadgeLib
 
             ushort value = 0;
             
-            value |= (ushort)((p0 & 0x01) << 0);
-            value |= (ushort)((p1 & 0x01) << 1);
-            value |= (ushort)((p2 & 0x01) << 2);
-            value |= (ushort)((p3 & 0x01) << 3);
-            value |= (ushort)((p4 & 0x01) << 4);
-            value |= (ushort)((p5 & 0x01) << 5);
-            value |= (ushort)((p6 & 0x01) << 6);
-            value |= (ushort)((p7 & 0x01) << 7);
+            value |= (ushort)((p7 & 0x01) << 0);
+            value |= (ushort)((p6 & 0x01) << 1);
+            value |= (ushort)((p5 & 0x01) << 2);
+            value |= (ushort)((p4 & 0x01) << 3);
+            value |= (ushort)((p3 & 0x01) << 4);
+            value |= (ushort)((p2 & 0x01) << 5);
+            value |= (ushort)((p1 & 0x01) << 6);
+            value |= (ushort)((p0 & 0x01) << 7);
 
-            value |= (ushort)((p0 & 0x02) << 7);
-            value |= (ushort)((p1 & 0x02) << 8);
-            value |= (ushort)((p2 & 0x02) << 9);
-            value |= (ushort)((p3 & 0x02) << 10);
-            value |= (ushort)((p4 & 0x02) << 11);
-            value |= (ushort)((p5 & 0x02) << 12);
-            value |= (ushort)((p6 & 0x02) << 13);
-            value |= (ushort)((p7 & 0x02) << 14);
+            value |= (ushort)((p7 & 0x02) << 7);
+            value |= (ushort)((p6 & 0x02) << 8);
+            value |= (ushort)((p5 & 0x02) << 9);
+            value |= (ushort)((p4 & 0x02) << 10);
+            value |= (ushort)((p3 & 0x02) << 11);
+            value |= (ushort)((p2 & 0x02) << 12);
+            value |= (ushort)((p1 & 0x02) << 13);
+            value |= (ushort)((p0 & 0x02) << 14);
 
             return new Pix2x8(value);
         }
 
         public static void Unpack8GrayPix(Pix2x8 pix, out byte p0, out byte p1, out byte p2, out byte p3, out byte p4, out byte p5, out byte p6, out byte p7)
         {
-            p0 = BadgeImage.PixToSrgbGray((byte)(((pix.Value & 0x0100) >>  7) | ((pix.Value & 0x01) >> 0)));
-            p1 = BadgeImage.PixToSrgbGray((byte)(((pix.Value & 0x0200) >>  8) | ((pix.Value & 0x02) >> 1)));
-            p2 = BadgeImage.PixToSrgbGray((byte)(((pix.Value & 0x0400) >>  9) | ((pix.Value & 0x04) >> 2)));
-            p3 = BadgeImage.PixToSrgbGray((byte)(((pix.Value & 0x0800) >> 10) | ((pix.Value & 0x08) >> 3)));
-            p4 = BadgeImage.PixToSrgbGray((byte)(((pix.Value & 0x1000) >> 11) | ((pix.Value & 0x10) >> 4)));
-            p5 = BadgeImage.PixToSrgbGray((byte)(((pix.Value & 0x2000) >> 12) | ((pix.Value & 0x20) >> 5)));
-            p6 = BadgeImage.PixToSrgbGray((byte)(((pix.Value & 0x4000) >> 13) | ((pix.Value & 0x40) >> 6)));
-            p7 = BadgeImage.PixToSrgbGray((byte)(((pix.Value & 0x8000) >> 14) | ((pix.Value & 0x80) >> 7)));
+            p7 = BadgeImage.PixToSrgbGray((byte)(((pix.Value & 0x0100) >>  7) | ((pix.Value & 0x01) >> 0)));
+            p6 = BadgeImage.PixToSrgbGray((byte)(((pix.Value & 0x0200) >>  8) | ((pix.Value & 0x02) >> 1)));
+            p5 = BadgeImage.PixToSrgbGray((byte)(((pix.Value & 0x0400) >>  9) | ((pix.Value & 0x04) >> 2)));
+            p4 = BadgeImage.PixToSrgbGray((byte)(((pix.Value & 0x0800) >> 10) | ((pix.Value & 0x08) >> 3)));
+            p3 = BadgeImage.PixToSrgbGray((byte)(((pix.Value & 0x1000) >> 11) | ((pix.Value & 0x10) >> 4)));
+            p2 = BadgeImage.PixToSrgbGray((byte)(((pix.Value & 0x2000) >> 12) | ((pix.Value & 0x20) >> 5)));
+            p1 = BadgeImage.PixToSrgbGray((byte)(((pix.Value & 0x4000) >> 13) | ((pix.Value & 0x40) >> 6)));
+            p0 = BadgeImage.PixToSrgbGray((byte)(((pix.Value & 0x8000) >> 14) | ((pix.Value & 0x80) >> 7)));
         }
 
         public static void IntermediateImagetoPackedBuffer(byte[] intermediateImage, byte[] packedBuffer, PixelFormat pixelFormat, int offset, bool rotate)
