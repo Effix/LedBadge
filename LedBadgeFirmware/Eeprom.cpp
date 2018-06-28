@@ -50,6 +50,15 @@ unsigned char ReadInternalEEPROM(unsigned int addr)
 void ConfigureExternalEEPROM()
 {
 #ifdef ENABLE_EXTERNAL_EEPROM
+	// enable internal pull-ups
+	DDRC &= ~((1 << DDC4) | (1 << DDC5));
+	PORTC |= (1 << PORTC4) | (1 << PORTC5);
+#if defined(__AVR_ATmega88PA__)
+	MCUCR &= ~(1 << PUD);
+#elif defined(__AVR_ATmega8A__)
+	SFIOR &= ~(1 << PUD); 
+#endif
+
 	ResetExternalEEPROM();
 #endif
 }
