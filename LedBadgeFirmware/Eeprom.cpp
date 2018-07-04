@@ -66,10 +66,10 @@ void ConfigureExternalEEPROM()
 // Soft reset the off chip memory
 void ResetExternalEEPROM()
 {
-	StartI2C();
+	/*StartI2C();
 	WriteI2C(0xFF);
 	StartI2C();
-	StopI2C();
+	StopI2C();*/
 }
 
 // Begins writing a sequence of bytes to the off chip memory

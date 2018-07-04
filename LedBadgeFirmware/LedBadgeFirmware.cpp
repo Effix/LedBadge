@@ -30,9 +30,7 @@ int main(void)
 			DispatchAnimCommand();
 			ResetIdleTime();
 		}
-		else
-		{
-			PumpAck();
-		}
+
+		PumpAck();
 	}
 }

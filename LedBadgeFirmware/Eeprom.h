@@ -1,7 +1,7 @@
 #ifndef EEPROM_H_
 #define EEPROM_H_
 
-//#define ENABLE_EXTERNAL_EEPROM
+#define ENABLE_EXTERNAL_EEPROM
 
 enum
 {

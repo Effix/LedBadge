@@ -447,7 +447,7 @@ void ConfigureDisplay()
 	SetBrightnessLevelRegisters(0);
 	
 	// refresh timer
-	TCCR2A |= (1 << WGM21);
+	//TCCR2A |= (1 << WGM21); Use manual reset on the 88PA
 	TCCR2B |= (1 << CS21);
 	OCR2A = 336 / 8; // ~186hz @ 12mhz
 	TIMSK2 |= (1 << OCIE2A);
@@ -500,7 +500,6 @@ void EnableDisplay(bool enable)
 }
 
 // Updates one segment of the display (one half a a row)
-//void RefreshDisplay()
 #if defined(__AVR_ATmega88PA__)
 ISR(TIMER2_COMPA_vect, ISR_BLOCK)
 #elif defined(__AVR_ATmega8A__)
@@ -806,4 +805,8 @@ ISR(TIMER2_COMP_vect, ISR_BLOCK)
 			}
 		}
 	}
+
+#if defined(__AVR_ATmega88PA__)
+	TCNT2 = 0;
+#endif
 }
